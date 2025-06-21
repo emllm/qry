@@ -1313,10 +1313,10 @@ if __name__ == "__main__":
 ║  🌐 Generowanie HTML GUI (PWA style)                        ║
 ║                                                             ║
 ║  Przykłady użycia:                                          ║
-║  python search.py "rachunki email"                          ║
-║  python search.py "zdjęcia ostatni tydzień"                 ║
-║  python search.py "json w html"                             ║
-║  python search.py "metadane EXIF"                           ║
+║  python qry.py  "rachunki email"                            ║
+║  python qry.py  "zdjęcia ostatni tydzień"                   ║
+║  python qry.py  "json w html"                               ║
+║  python qry.py  "metadane EXIF"                             ║
 ╚═════════════════════════════════════════════════════════════╝
     """)
     
