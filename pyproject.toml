@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "qry"
-version = "0.1.0"
+version = "0.1.1"
 description = "QRY project for financial document processing"
 authors = ["Tom Sapletta <info@softreck.dev>"]
 readme = "README.md"
