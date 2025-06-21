@@ -353,7 +353,7 @@ class InteractiveCLI(cmd.Cmd):
             "",
             "Examples:",
             "  search invoice --type pdf --last-days 30",
-            "  search ""report" --output html"
+            '  search "report" --output html'
         ]))
 
 
