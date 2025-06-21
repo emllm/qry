@@ -1,10 +1,11 @@
 [tool.poetry]
 name = "qry"
-version = "0.1.1"
-description = "QRY project for financial document processing"
+version = "0.2.1"
+description = "Ultra-fast file search and processing tool"
 authors = ["Tom Sapletta <info@softreck.dev>"]
 readme = "README.md"
 license = "MIT"
+packages = [{include = "qry"}]
 
 [tool.poetry.dependencies]
 python = "^3.8"
@@ -18,10 +19,24 @@ ujson = "^5.8.0"
 tqdm = "^4.66.0"
 pytz = "^2023.3"
 pandas = "^2.0.0"
+fastapi = "^0.104.1"
+uvicorn = {extras = ["standard"], version = "^0.24.0"}
+jinja2 = "^3.1.2"
+pydantic = "^2.4.2"
 
 [tool.poetry.scripts]
-qry = "qry:main"
+qry = "qry.cli.commands:main"
+qry-api = "qry.api.app:app"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.4.2"
+pytest-cov = "^4.1.0"
+black = "^23.9.1"
+isort = "^5.12.0"
+mypy = "^1.5.1"
+flake8 = "^6.1.0"
+

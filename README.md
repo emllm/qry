@@ -43,11 +43,84 @@ python qry.py "your search query"
 python qry.py "your search query" --scope 1 --max-depth 2
 ```
 
-## 📋 Available Options
+## 🔧 Available Options
 
-- `--scope`: Number of directory levels to go up (default: 1)
-  - `0`: Current directory only
-  - `1`: One level up (default)
+### CLI Options
+
+```
+Usage: qry [OPTIONS] COMMAND [ARGS]...
+
+Options:
+  --help  Show this message and exit.
+
+Commands:
+  search   Search for files
+  version  Show version information
+  help     Show help
+
+Search Options:
+  -t, --type TEXT     Filter by file type (comma-separated)
+  -d, --last-days INT  Filter by last N days
+  -l, --limit INT      Maximum number of results (default: 100)
+  --no-preview        Disable preview generation
+  -v, --verbose        Enable verbose output
+```
+
+### API Endpoints
+
+- `GET /api/search` - Search for files
+  - Parameters:
+    - `q`: Search query (required)
+    - `types`: Comma-separated list of file types
+    - `limit`: Maximum number of results (default: 100)
+    - `last_days`: Filter by last N days
+    - `engine`: Search engine to use (default: 'default')
+
+## 🛠️ Development
+
+### Project Structure
+
+- `qry/cli/` - Command-line interface
+- `qry/api/` - REST API implementation
+- `qry/core/` - Core models and interfaces
+- `qry/engines/` - Search engine implementations
+- `qry/utils/` - Utility functions
+- `qry/web/` - Web interface components
+
+### Adding a New Search Engine
+
+1. Create a new file in `qry/engines/`
+2. Implement the `SearchEngine` interface from `qry.engines.base`
+3. Register your engine in `qry/engines/__init__.py`
+
+### Running Tests
+
+```bash
+# Install test dependencies
+pip install -e ".[test]"
+
+# Run tests
+pytest
+```
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- Thanks to all contributors who have helped improve this project.
+- Special thanks to the developers of the amazing open-source libraries that make this project possible.
   - `2`: Two levels up, etc.
 
 - `--max-depth`: Maximum directory depth to search (default: 2)
@@ -139,7 +212,7 @@ graph LR
 
 For more examples and detailed documentation, see [EXAMPLES.md](EXAMPLES.md).
 
-## **🎯 Usage Examples**
+## 🎯 Usage Examples
 
 ### Basic Search
 ```bash
@@ -173,5 +246,3 @@ System automatycznie:
 - Wybiera odpowiednie parsery
 - Generuje zoptymalizowany HTML
 - Tworzy interaktywne GUI
-
-**Wydajność**: 10000+ plików w sekundach, miniaturki base64 on-the-fly, responsive PWA interface!
