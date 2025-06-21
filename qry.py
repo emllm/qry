@@ -1300,8 +1300,8 @@ def demo_cli_interface():
         output_file = cli.execute_command(command)
         print(f"📄 Wynik: {output_file}")
 
-# GŁÓWNA FUNKCJA
-if __name__ == "__main__":
+def main():
+    """Główna funkcja uruchamiana przez entry point."""
     print("""
 ╔═════════════════════════════════════════════════════════════╗
 ║            ULTRA-SZYBKI PROCESOR PLIKÓW v1.0                ║
@@ -1313,10 +1313,10 @@ if __name__ == "__main__":
 ║  🌐 Generowanie HTML GUI (PWA style)                        ║
 ║                                                             ║
 ║  Przykłady użycia:                                          ║
-║  python qry.py  "rachunki email"                            ║
-║  python qry.py  "zdjęcia ostatni tydzień"                   ║
-║  python qry.py  "json w html"                               ║
-║  python qry.py  "metadane EXIF"                             ║
+║  qry "rachunki email"                                       ║
+║  qry "zdjęcia ostatni tydzień"                              ║
+║  qry "json w html"                                          ║
+║  qry "metadane EXIF"                                        ║
 ╚═════════════════════════════════════════════════════════════╝
     """)
     
@@ -1357,4 +1357,8 @@ if __name__ == "__main__":
     print("- Alternatywy: Rust (ripgrep), Go, C++ dla maksymalnej wydajności")
     print("- Konwersje: FFmpeg (media), ImageMagick (obrazy), Pandoc (dokumenty)")
     print("- HTML: Jinja2 templates lub f-strings dla prostych przypadków")
+
+# GŁÓWNA FUNKCJA
+if __name__ == "__main__":
+    main()
     print("- Równoległość: ThreadPoolExecutor dla I/O, ProcessPoolExecutor dla CPU")

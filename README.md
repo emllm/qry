@@ -90,14 +90,54 @@ python qry.py "your search query" --scope 1 --max-depth 2
 3. **Component-based**: React SSR, Vue SSR dla złożonych UI
 4. **Streaming**: Writer patterns dla bardzo dużych plików
 
-## **💡 Kod implementuje:**
+## ✨ Key Features
 
-✅ **Ultra-szybki parser** - regex + specialized libraries  
-✅ **Równoległe przetwarzanie** - ThreadPool + ProcessPool  
-✅ **Smart caching** - hash-based file cache  
-✅ **PWA-style HTML** - responsive, interactive galleries  
-✅ **CLI interface** - bash-friendly commands  
-✅ **Selective extraction** - tylko potrzebne części plików  
+```
+┌───────────────────────────────────────────────────────────┐
+│                      QRY Features                        │
+├───────────────────────────────┬─────────────────────────┤
+│ 🔍 Smart Search               │ Fast pattern matching   │
+│ 📊 Metadata Extraction        │ EXIF, PDF, documents    │
+| ⚡ Parallel Processing        | Multi-core performance  │
+| 🎨 Format Conversion         | Convert between formats  │
+| 📱 Responsive Output         | HTML, JSON, text        │
+| 🛡️  Smart Caching            | Faster repeated queries  │
+└───────────────────────────────┴─────────────────────────┘
+```
+
+## 🚀 Getting Started
+
+### Basic Search
+```bash
+# Find all Python files containing 'class'
+qry "class" --type py
+
+# Search with regex
+qry "import\s+\w+" --regex
+```
+
+### Advanced Usage
+```mermaid
+graph LR
+    A[Query] --> B{Type?}
+    B -->|Search| C[File Search]
+    B -->|Metadata| D[Metadata Extraction]
+    B -->|Convert| E[Format Conversion]
+    
+    C --> F[Filter Results]
+    D --> F
+    E --> F
+    
+    F --> G[Format Output]
+    G --> H[Display Results]
+    
+    style A fill:#f9f,stroke:#333
+    style H fill:#9f9,stroke:#333
+```
+
+## 📚 Documentation
+
+For more examples and detailed documentation, see [EXAMPLES.md](EXAMPLES.md).
 
 ## **🎯 Usage Examples**
 
