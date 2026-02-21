@@ -65,11 +65,15 @@ class CLICommands:
             representative_mask = sorted_masks[0][0]
             
             depth_str = f"{min_depth}" if min_depth == max_depth else f"{min_depth} to {max_depth}"
-            limit_str = f" (limit: {query.max_depth})" if query.max_depth is not None else ""
-            print(f"Scope: {representative_mask} | Depth: {depth_str} level(s){limit_str}")
+            print(f"Scope: {representative_mask}")
+            print(f"Depth: {depth_str} level(s)")
+            if query.max_depth is not None:
+                print(f"Limit: {query.max_depth}")
         else:
-            limit_str = f" (limit: {query.max_depth})" if query.max_depth is not None else ""
-            print(f"Scope: {base_path} | Depth: 0 levels{limit_str}")
+            print(f"Scope: {base_path}")
+            print(f"Depth: 0 levels")
+            if query.max_depth is not None:
+                print(f"Limit: {query.max_depth}")
         
         return 0
     

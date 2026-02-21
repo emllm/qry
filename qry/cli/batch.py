@@ -24,7 +24,8 @@ class BatchProcessor:
         engine=None,
         output_format: str = 'text',
         output_file: Optional[str] = None,
-        max_workers: int = 4
+        max_workers: int = 4,
+        search_paths: Optional[List[str]] = None,
     ) -> None:
         """Initialize the batch processor.
 
@@ -33,11 +34,13 @@ class BatchProcessor:
             output_format: Output format (text, json, csv)
             output_file: Optional output file path
             max_workers: Maximum number of worker threads
+            search_paths: Paths to search in for each query
         """
         self.engine = engine or get_default_engine()
         self.output_format = output_format
         self.output_file = output_file
         self.max_workers = max_workers
+        self.search_paths = search_paths or ['.']
         self.results: List[Dict[str, Any]] = []
 
     def process_file(self, input_file: str) -> int:
@@ -129,7 +132,7 @@ class BatchProcessor:
             List[SearchResult]: Search results
         """
         search_query = SearchQuery(query_text=query)
-        return self.engine.search(search_query)
+        return self.engine.search(search_query, self.search_paths)
     
     def _write_results(
         self,
