@@ -38,11 +38,17 @@ pip install -r requirements.txt
 ## Quick start
 
 ```bash
-# search in current directory
+# search in current directory (filename match, YAML output)
 poetry run qry "invoice"
 
-# search with scope/depth limit
-poetry run qry "README" --scope . --depth 2 --limit 20
+# search file contents with preview snippet
+poetry run qry "def search" -c -p --scope ./qry
+
+# regex search, sorted by name
+poetry run qry "\.py$" -r --sort name --scope .
+
+# pipe-friendly output for shell pipelines
+poetry run qry "TODO" -c -o paths | xargs grep -n "FIXME"
 
 # show version and engines
 poetry run qry version

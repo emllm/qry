@@ -1,4 +1,24 @@
-## [Unreleased]
+## [0.2.7] - 2026-02-21
+
+### Summary
+
+feat(docs): deep code analysis engine with 4 supporting modules
+
+### Docs
+
+- docs: update EXAMPLES.md
+- docs: update README
+
+### Build
+
+- update pyproject.toml
+
+### Other
+
+- update qry/__init__.py
+
+
+## [0.2.5] - 2026-02-21
 
 ### Added
 - **Streaming search** via `search_iter()` — results yielded one at a time, Ctrl+C stops mid-search and outputs partial YAML/JSON
@@ -22,6 +42,15 @@
 
 ### Fixed
 - Search results were never printed (only scope/depth summary was shown)
+- Version synced between `pyproject.toml` and `qry/__init__.py`
+
+### Tests
+- Test suite expanded from 2 to 22 tests covering: Python API, content search, regex, size filtering, sort, exclusions, snippets, `_parse_size`
+
+### Docs
+- `README.md` rewritten with full CLI reference, flag tables, Python API with parameter docs
+- `EXAMPLES.md` rewritten from scratch — all examples use real, working `qry` commands
+- `CHANGELOG.md` updated with all changes
 
 ## [0.2.4] - 2026-02-21
 

@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "qry"
-version = "0.2.5"
+version = "0.2.7"
 description = "Ultra-fast file search and processing tool"
 authors = [
     "Tom Sapletta <info@softreck.dev>",

@@ -1,241 +1,238 @@
-# QRY - Przykłady użycia
+# qry — Przykłady użycia / Usage examples
 
-## 1. Wyszukiwanie plików
+> Wszystkie polecenia poniżej działają z aktualną wersją `qry`.
+> Używaj `poetry run qry …` lub zainstaluj pakiet globalnie.
 
-### Znajdź wszystkie obrazy w bieżącym katalogu i podkatalogach
+---
+
+## 1. Wyszukiwanie po nazwie pliku
+
 ```bash
-qry "type:image"
-```
+# Proste wyszukiwanie — domyślnie przeszukuje nazwy plików
+qry "invoice"
 
-### Ogranicz wyszukiwanie do określonego katalogu i głębokości
-```bash
+# Ogranicz zakres i głębokość
 qry "faktura" --scope /home/user/dokumenty --depth 2
+
+# Znajdź pliki PDF
+qry "" --type pdf --scope /data/docs
+
+# Znajdź pliki README
+qry "README" --scope . --depth 1
 ```
 
-### Znajdź pliki PDF z ostatnich 7 dni
+## 2. Wyszukiwanie w treści plików
+
 ```bash
-qry "type:pdf date:7d"
+# Szukaj słowa w zawartości plików
+qry "faktura" -c
+
+# Szukaj w konkretnych typach plików
+qry "keyword" -c --type py,txt --scope ./src
+
+# Wyszukiwanie OR — znajdź pliki zawierające jedno z kilku słów
+qry "TODO OR FIXME" -c --type py --scope ./src
+
+# Podgląd — pokaż dopasowaną linię z kontekstem
+qry "def search" -c -p --scope ./qry --depth 3
 ```
 
-### Wyszukaj pliki większe niż 5MB
+## 3. Wyszukiwanie z wyrażeniami regularnymi (regex)
+
 ```bash
-qry "size:>5M"
+# Znajdź pliki .py po nazwie za pomocą regex
+qry "\.py$" -r --sort name
+
+# Znajdź definicje funkcji w Pythonie
+qry "def \w+\(" -c -r --type py --scope ./src
+
+# Znajdź importy na początku linii
+qry "^import " -c -r --type py
+
+# Regex + podgląd kontekstu
+qry "class \w+Engine" -c -r -p --type py --scope ./qry
 ```
 
-## 2. Przeszukiwanie treści
+## 4. Filtrowanie po rozmiarze pliku
 
-### Znajdź pliki zawierające słowo "faktura"
 ```bash
-qry "faktura"
+# Pliki większe niż 1 MB
+qry "" --min-size 1MB --sort size
+
+# Pliki od 10 KB do 500 KB
+qry "" --min-size 10k --max-size 500k
+
+# Duże pliki logów
+qry "" --type log --min-size 10MB --scope /var/log
+
+# Małe pliki Python (< 1 KB)
+qry "" --type py --max-size 1k --scope ./qry
 ```
 
-### Szukaj w konkretnych typach plików
+## 5. Filtrowanie po dacie
+
 ```bash
-qry "keyword type:pdf,docx"
+# Pliki zmienione w ostatnich 7 dniach
+qry "" --last-days 7
+
+# Raporty PDF z ostatniego miesiąca
+qry "report" --type pdf --last-days 30 --scope /data/docs
 ```
 
-## 3. Praca z metadanymi
+## 6. Sortowanie wyników
 
-### Wyświetl metadane pliku
 ```bash
-qry --metadata sciezka/do/pliku.jpg
+# Sortuj po nazwie (alfabetycznie)
+qry "" --sort name --scope ./qry
+
+# Sortuj po rozmiarze (najmniejsze najpierw)
+qry "" --sort size --scope .
+
+# Sortuj po dacie modyfikacji
+qry "" --sort date --last-days 30
+
+# Największe pliki Pythona
+qry "" --type py --sort size --scope ./qry
 ```
 
-### Znajdź zdjęcia z określonymi parametrami EXIF
+## 7. Wykluczanie katalogów
+
+Domyślnie pomijane: `.git` `.venv` `__pycache__` `dist` `node_modules` `.tox` `.mypy_cache`
+
 ```bash
-qry "exif.camera:Canon exif.focal_length:50mm"
+# Dodaj własne katalogi do wykluczenia
+qry "config" -e build -e ".cache"
+
+# Wiele katalogów — rozdzielone przecinkiem
+qry "config" -e "build,.cache,.eggs"
+
+# Wyłącz wszystkie domyślne wykluczenia (przeszukaj wszystko)
+qry "config" --no-exclude
 ```
 
-## 4. Eksport wyników
+## 8. Formaty wyjścia
 
-### Zapisz wyniki do pliku JSON
 ```bash
-qry "zapytanie" --output results.json
+# YAML (domyślny)
+qry "invoice"
+
+# JSON — do przetwarzania przez jq
+qry "invoice" -o json | jq '.results[]'
+
+# Paths — jedna ścieżka na linię, do pipe'owania
+qry "invoice" -o paths
+
+# Zapisz wyniki JSON do pliku
+qry "report" --type pdf -o json > results.json
 ```
 
-### Wygeneruj raport HTML
+## 9. Integracja z innymi narzędziami (piping)
+
 ```bash
-qry "zapytanie" --html report.html
+# Znajdź pliki z TODO i sprawdź ile razy występuje FIXME
+qry "TODO" -c -o paths | xargs grep -c "FIXME"
+
+# Skopiuj pasujące pliki do katalogu backup
+qry "invoice" -o paths | xargs -I{} cp {} /backup/
+
+# Zlicz linie w znalezionych plikach Python
+qry "" --type py -o paths | xargs wc -l
+
+# Otwórz znalezione pliki w edytorze
+qry "config" --type yaml -o paths | xargs code
 ```
 
-## 5. Zaawansowane zapytania
+## 10. Przetwarzanie wsadowe (batch)
 
-### Znajdź duplikaty plików
 ```bash
-qry "duplicates:true"
+# Plik z zapytaniami — jedno na linię
+echo -e "invoice\nreport\nconfig" > queries.txt
+
+# Przetwórz wsadowo
+qry batch queries.txt --format json --output-file results.json
+
+# Wielowątkowe przetwarzanie
+qry batch queries.txt --workers 8 --format csv --output-file results.csv
 ```
 
-### Wyszukaj puste pliki
+## 11. Tryb interaktywny
+
 ```bash
-qry "size:0"
+# Uruchom tryb interaktywny
+qry interactive
+# lub skrót:
+qry i
 ```
 
-## 6. Integracja z innymi narzędziami
+## 12. Python API
 
-### Przekaż wyniki do innego programu
+```python
+import qry
+
+# Proste wyszukiwanie po nazwie
+files = qry.search("invoice", scope="/data/docs")
+
+# Wyszukiwanie w treści plików
+matches = qry.search("TODO", scope="./src", mode="content", depth=5)
+
+# Regex + sortowanie
+py_files = qry.search(r"test_.*\.py$", scope=".", regex=True, sort_by="name")
+
+# Filtrowanie po rozmiarze — duże pliki
+big = qry.search("", scope=".", min_size=1024*1024, sort_by="size")
+
+# Streaming — pamięciowo efektywny, obsługuje Ctrl+C
+for path in qry.search_iter("faktura", scope="/data", mode="content"):
+    print(path)
+
+# Własne wykluczenia
+files = qry.search("config", exclude_dirs=[".git", "build", ".venv"])
+
+# Filtr po typie pliku
+docs = qry.search("", scope="/data", file_types=["pdf", "docx", "md"])
+```
+
+## 13. Łączenie flag — przykłady złożone
+
 ```bash
-qry "*.log" | grep "error"
+# Pliki Pythona > 5 KB, posortowane po rozmiarze, z podglądem treści
+qry "class" -c -p --type py --min-size 5k --sort size --scope ./qry
+
+# Regex: znajdź pliki testowe, posortowane po nazwie
+qry "test_.*\.py$" -r --sort name --scope .
+
+# JSON output: pliki zmienione w ostatnim tygodniu, bez .git i node_modules
+qry "" --last-days 7 --sort date -o json
+
+# Pipe-friendly: pliki > 100 KB zmienione ostatnio
+qry "" --min-size 100k --last-days 3 -o paths | head -20
 ```
 
-### Zlicz linie w znalezionych plikach
+## 14. Informacje o wersji
+
 ```bash
-qry "*.py" --exec "wc -l"
+# Wersja i dostępne silniki wyszukiwania
+qry version
 ```
 
-## 7. Przykłady dla programistów
+---
 
-### Znajdź funkcje w plikach Pythona
-```bash
-qry "def function_name" --type py
-```
+## Ściągawka flag
 
-### Znajdź importy w kodzie źródłowym
-```bash
-qry "^import " --type py
-```
-
-## 8. Automatyzacja
-
-### Usuń puste katalogi
-```bash
-qry --empty-dirs | xargs rmdir
-```
-
-### Zmień uprawnienia plików
-```bash
-qry "*.sh" --exec "chmod +x"
-```
-
-## 9. Przykłady dla dokumentacji
-
-### Znajdź pliki README
-```bash
-qry "README*"
-```
-
-### Wyszukaj w dokumentacji
-```bash
-qry "słowo_kluczowe" --path /ścieżka/do/dokumentacji
-```
-
-## 10. Monitorowanie systemu
-
-### Znajdź duże pliki tymczasowe
-```bash
-qry "size:>100M /tmp/"
-```
-
-### Monitoruj zmiany w katalogu
-```bash
-while true; do qry --changed 5m /sciezka/do/monitorowania; sleep 300; done
-```
-
-## 11. Przetwarzanie dokumentów
-
-### Konwertuj HTML do tekstu
-```bash
-qry "file.html" --to-txt
-```
-
-### Wyodrębnij tabele z plików PDF
-```bash
-qry "*.pdf" --extract-tables
-```
-
-## 12. Praca z archiwami
-
-### Przeszukaj zawartość archiwów ZIP
-```bash
-qry "*.zip" --search-in-archive
-```
-
-### Wyodrębnij pliki z archiwów
-```bash
-qry "*.zip" --extract-to=/katalog/docelowy
-```
-
-## 13. Bezpieczeństwo
-
-### Sprawdź uprawnienia plików
-```bash
-qry "permissions:777"
-```
-
-### Znajdź pliki wykonywalne
-```bash
-qry "executable:true"
-```
-
-## 14. Integracja z bazami danych
-
-### Eksport wyników do SQLite
-```bash
-qry "zapytanie" --sqlite baza.db
-```
-
-### Wykonaj zapytanie SQL na wynikach
-```bash
-qry "*.csv" --sql "SELECT * FROM results WHERE size > 1000000"
-```
-
-## 15. Przetwarzanie równoległe
-
-### Przetwarzaj pliki wielowątkowo
-```bash
-qry "*.jpg" --threads 8 --exec "mogrify -resize 50%"
-```
-
-## 16. Filtrowanie wyników
-
-### Wyklucz określone katalogi
-```bash
-qry "szukany_tekst" --exclude-dir "node_modules,.git"
-```
-
-### Filtruj po dacie modyfikacji
-```bash
-qry "modified:>2023-01-01"
-```
-
-## 17. Integracja z chmurą
-
-### Przesyłaj znalezione pliki na S3
-```bash
-qry "*.log" --s3-upload s3://moj-kosz/logs/
-```
-
-### Synchronizuj z Google Drive
-```bash
-qry "--sync-gdrive folder_id /lokalna/sciezka"
-```
-
-## 18. Monitorowanie zmian
-
-### Śledź nowe pliki
-```bash
-qry "--watch /sciezka --exec 'echo Zmieniono: %f'"
-```
-
-## 19. Przetwarzanie multimediów
-
-### Konwertuj obrazy
-```bash
-qry "*.jpg" --convert "png" --quality 80
-```
-
-### Wyodrębnij klatki z wideo
-```bash
-qry "*.mp4" --extract-frames --fps 1
-```
-
-## 20. Analiza danych
-
-### Analizuj logi
-```bash
-qry "access.log" --analyze-logs
-```
-
-### Generuj statystyki
-```bash
-qry "*.csv" --stats
-```
+| Flaga | Krótka | Opis |
+|-------|--------|------|
+| `--content` | `-c` | Szukaj w treści plików |
+| `--filename` | `-f` | Szukaj po nazwie (domyślne) |
+| `--regex` | `-r` | Traktuj zapytanie jako regex |
+| `--preview` | `-p` | Pokaż dopasowaną linię (z `-c`) |
+| `--type EXT` | `-t` | Filtruj po rozszerzeniu |
+| `--scope PATH` | `-s` | Katalog do przeszukania |
+| `--depth N` | `-d` | Maks. głębokość katalogów |
+| `--limit N` | `-l` | Maks. liczba wyników (0 = bez limitu) |
+| `--min-size SIZE` | | Min. rozmiar pliku (1k, 10MB, 1G) |
+| `--max-size SIZE` | | Maks. rozmiar pliku |
+| `--last-days N` | | Pliki zmienione w ostatnich N dniach |
+| `--sort KEY` | | Sortuj: `name`, `size`, `date` |
+| `--exclude DIR` | `-e` | Wyklucz katalog (powtarzalne) |
+| `--no-exclude` | | Wyłącz domyślne wykluczenia |
+| `--output FMT` | `-o` | Format: `yaml`, `json`, `paths` |
