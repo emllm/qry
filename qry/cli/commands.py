@@ -56,7 +56,6 @@ class CLICommands:
                 # W razie błędu fallback do absolutnej ścieżki
                 masks.add((abs_path, 0))
                 
-        print(f"Scope: {base_path}")
         if masks:
             min_depth = min(depth for _, depth in masks)
             max_depth = max(depth for _, depth in masks)
@@ -64,10 +63,10 @@ class CLICommands:
             
             # Jeżeli max_depth z zapytania był ustawiony, wyświetl informację
             limit_str = f" (limit: {query.max_depth})" if query.max_depth is not None else ""
-            print(f"Depth: {depth_str} level(s){limit_str}")
+            print(f"Scope: {base_path} | Depth: {depth_str} level(s){limit_str}")
         else:
             limit_str = f" (limit: {query.max_depth})" if query.max_depth is not None else ""
-            print(f"Depth: 0 levels{limit_str}")
+            print(f"Scope: {base_path} | Depth: 0 levels{limit_str}")
             
         print("-" * 40)
         
