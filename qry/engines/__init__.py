@@ -1,5 +1,5 @@
 """Search engine implementations and factory."""
-from typing import Dict, Type, Optional
+from typing import Dict, Optional, Type
 
 from .base import SearchEngine
 from .simple import SimpleSearchEngine
@@ -20,7 +20,7 @@ def get_available_engines() -> Dict[str, Type[SearchEngine]]:
     }
 
 
-def get_engine(name: str, **kwargs) -> Optional[SearchEngine]:
+def get_engine(name: Optional[str] = None, **kwargs) -> Optional[SearchEngine]:
     """Get a search engine by name.
     
     Args:
@@ -31,6 +31,12 @@ def get_engine(name: str, **kwargs) -> Optional[SearchEngine]:
         SearchEngine instance or None if not available
     """
     engines = get_available_engines()
+
+    if not name or name == "default":
+        for engine_class in engines.values():
+            return engine_class(**kwargs)
+        return None
+
     engine_class = engines.get(name)
     if engine_class:
         return engine_class(**kwargs)
@@ -39,11 +45,9 @@ def get_engine(name: str, **kwargs) -> Optional[SearchEngine]:
 
 def get_default_engine() -> SearchEngine:
     """Get the default search engine."""
-    engines = get_available_engines()
-    
-    # Try to return the first available engine
-    for name, engine_class in engines.items():
-        return engine_class()
+    engine = get_engine()
+    if engine is not None:
+        return engine
     
     # If no engines are available, raise an error
     raise RuntimeError("No search engines available. Please install required dependencies.")

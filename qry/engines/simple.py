@@ -1,10 +1,13 @@
 """Simple file search engine implementation."""
 import os
-import re
-import magic
 from pathlib import Path
 from datetime import datetime
-from typing import List, Dict, Any, Tuple, Optional
+from typing import List, Optional
+
+try:
+    import magic  # type: ignore
+except ImportError:  # pragma: no cover - depends on optional runtime dependency
+    magic = None
 
 from ..core.models import SearchResult, SearchQuery
 from .base import SearchEngine
@@ -16,7 +19,7 @@ class SimpleSearchEngine(SearchEngine):
     def __init__(self, max_workers: int = None):
         """Initialize the simple search engine."""
         self.max_workers = max_workers or os.cpu_count()
-        self.mime = magic.Magic(mime=True)
+        self.mime = magic.Magic(mime=True) if magic else None
     
     def search(self, query: SearchQuery, search_paths: List[str]) -> List[SearchResult]:
         """Search for files matching the query."""
@@ -25,12 +28,31 @@ class SimpleSearchEngine(SearchEngine):
             if not os.path.exists(path):
                 continue
                 
+            abs_search_path = os.path.abspath(path)
+            
             if os.path.isfile(path):
                 result = self._process_file(path, query)
                 if result and self._matches_query(result, query):
                     results.append(result)
             else:
-                for root, _, files in os.walk(path):
+                for root, dirs, files in os.walk(path):
+                    # Check depth if max_depth is specified
+                    abs_root = os.path.abspath(root)
+                    rel_root = os.path.relpath(abs_root, abs_search_path)
+                    
+                    if rel_root == '.':
+                        depth = 0
+                    else:
+                        depth = len([p for p in rel_root.split(os.sep) if p and p != '.'])
+                        
+                    if query.max_depth is not None:
+                        # If current directory is at or deeper than max_depth, 
+                        # clear dirs so os.walk doesn't descend further
+                        if depth >= query.max_depth:
+                            dirs[:] = []
+                            if depth > query.max_depth:
+                                continue
+                                
                     for file in files:
                         file_path = os.path.join(root, file)
                         result = self._process_file(file_path, query)
@@ -50,8 +72,11 @@ class SimpleSearchEngine(SearchEngine):
             stat = os.stat(file_path)
             file_type = Path(file_path).suffix.lower()
             
-            # Get MIME type
-            content_type = self.mime.from_file(file_path)
+            # Get MIME type (fallback when python-magic is unavailable)
+            if self.mime:
+                content_type = self.mime.from_file(file_path)
+            else:
+                content_type = "application/octet-stream"
             
             return SearchResult(
                 file_path=file_path,
@@ -100,8 +125,4 @@ class SimpleSearchEngine(SearchEngine):
     
     def is_available(self) -> bool:
         """Check if the search engine is available."""
-        try:
-            import magic
-            return True
-        except ImportError:
-            return False
+        return True

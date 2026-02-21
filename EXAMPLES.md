@@ -7,6 +7,11 @@
 qry "type:image"
 ```
 
+### Ogranicz wyszukiwanie do określonego katalogu i głębokości
+```bash
+qry "faktura" --scope /home/user/dokumenty --depth 2
+```
+
 ### Znajdź pliki PDF z ostatnich 7 dni
 ```bash
 qry "type:pdf date:7d"

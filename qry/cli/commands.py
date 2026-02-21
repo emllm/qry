@@ -3,12 +3,11 @@ import argparse
 import os
 import sys
 from datetime import datetime, timedelta
-from pathlib import Path
-from typing import List, Optional, Dict, Any, TextIO
+from typing import List, Optional
 
 from qry import __version__
 from qry.core.models import SearchQuery
-from qry.engines import get_default_engine, get_available_engines
+from qry.engines import get_default_engine, get_available_engines, get_engine
 from qry.cli.interactive import run_interactive
 from qry.cli.batch import run_batch
 
@@ -35,11 +34,51 @@ class CLICommands:
             int: Exit code (0 for success)
         """
         query = self._build_search_query(args)
-        results = self.engine.search(query, ['.'])  # Search in current directory
+        search_paths = [args.scope]
+        results = self.engine.search(query, search_paths)  # Search in specified directory
         
         # Format and print results
-        for i, result in enumerate(results, 1):
-            print(f"{i}. {result.file_path} ({result.content_type}, {result.size} bytes)")
+        base_path = os.path.abspath(search_paths[0])
+        masks = set()
+        
+        for result in results:
+            abs_path = os.path.abspath(result.file_path)
+            # Obliczanie względnej ścieżki do miejsca przeszukiwania
+            try:
+                rel_path = os.path.relpath(abs_path, base_path)
+                parts = rel_path.split(os.sep)
+                # Odrzucamy kropkę i puste elementy, jeśli występują
+                parts = [p for p in parts if p and p != '.']
+                # Tworzymy maskę składającą się z basePath i odpowiedniej liczby gwiazdek
+                mask = os.path.join(base_path, *(['*'] * len(parts)))
+                masks.add((mask, len(parts)))
+            except ValueError:
+                # W razie błędu fallback do absolutnej ścieżki
+                masks.add((abs_path, 0))
+                
+        print(f"Scope: {base_path}")
+        if masks:
+            min_depth = min(depth for _, depth in masks)
+            max_depth = max(depth for _, depth in masks)
+            depth_str = f"{min_depth} to {max_depth}" if min_depth != max_depth else str(min_depth)
+            
+            # Jeżeli max_depth z zapytania był ustawiony, wyświetl informację
+            limit_str = f" (limit: {query.max_depth})" if query.max_depth is not None else ""
+            print(f"Depth: {depth_str} level(s){limit_str}")
+        else:
+            limit_str = f" (limit: {query.max_depth})" if query.max_depth is not None else ""
+            print(f"Depth: 0 levels{limit_str}")
+            
+        print("-" * 40)
+        
+        if not results:
+            print("No results found.")
+            return 0
+                
+        # Sort by depth, then alphabetically
+        sorted_masks = sorted(masks, key=lambda x: (x[1], x[0]))
+        for i, (mask, _) in enumerate(sorted_masks, 1):
+            print(f"{i}. {mask}")
         
         return 0
     
@@ -65,7 +104,8 @@ class CLICommands:
             file_types=file_types,
             date_range=date_range,
             max_results=args.limit,
-            include_previews=not args.no_preview
+            include_previews=not args.no_preview,
+            max_depth=args.depth
         )
     
     def version_command(self, args: argparse.Namespace) -> int:
@@ -113,8 +153,6 @@ class CLICommands:
             engine_name=args.engine,
             max_workers=args.workers
         )
-        print(f"qry version {__version__}")
-        print(f"Using engine: {self.engine.get_name()}")
 
 
 def create_parser() -> argparse.ArgumentParser:
@@ -145,8 +183,19 @@ def create_parser() -> argparse.ArgumentParser:
         help="Filter by file type (comma-separated)",
     )
     search_parser.add_argument(
-        "--last-days",
+        "--scope",
+        "-s",
+        default=".",
+        help="Search scope directory (default: current directory)",
+    )
+    search_parser.add_argument(
+        "--depth",
         "-d",
+        type=int,
+        help="Maximum depth to search",
+    )
+    search_parser.add_argument(
+        "--last-days",
         type=int,
         help="Filter by last N days",
     )
@@ -171,7 +220,7 @@ def create_parser() -> argparse.ArgumentParser:
     )
     
     # Interactive command
-    interactive_parser = subparsers.add_parser(
+    subparsers.add_parser(
         "interactive",
         aliases=["i", "shell"],
         help="Start interactive mode",
@@ -213,7 +262,7 @@ def create_parser() -> argparse.ArgumentParser:
     
     # Help command
     help_parser = subparsers.add_parser("help", help="Show help")
-    help_parser.add_argument("command", nargs="?", help="Command to show help for")
+    help_parser.add_argument("topic", nargs="?", help="Command to show help for")
     
     return parser
 
@@ -232,12 +281,14 @@ def main(args: Optional[List[str]] = None) -> int:
         
     parsed_args = parser.parse_args(args)
     
-    if not parsed_args.command or parsed_args.command == "help":
-        if hasattr(parsed_args, 'command') and parsed_args.command:
-            # Show help for a specific command
-            parser.parse_args([parsed_args.command, "--help"])
+    if not parsed_args.command:
+        parser.print_help()
+        return 0
+
+    if parsed_args.command == "help":
+        if getattr(parsed_args, "topic", None):
+            parser.parse_args([parsed_args.topic, "--help"])
         else:
-            # Show general help
             parser.print_help()
         return 0
     

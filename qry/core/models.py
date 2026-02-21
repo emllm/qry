@@ -34,7 +34,6 @@ class SearchResult:
             "size": self.size,
             "hash": self.hash,
             "score": self.score,
-            "modified": self.modified.isoformat(),
         }
 
     def dict(self) -> Dict[str, Any]:
@@ -62,6 +61,7 @@ class SearchQuery:
     output_format: str = "html"
     include_previews: bool = True
     max_results: int = 1000
+    max_depth: Optional[int] = None
 
 
 class SearchError(Exception):

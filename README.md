@@ -26,11 +26,11 @@ pip install -r requirements.txt
 ### Using Poetry:
 
 ```bash
-# Search with default scope (1 level up) and depth (2 levels)
+# Search with default scope (current directory) and depth (unlimited)
 poetry run qry "your search query"
 
 # Custom scope and depth
-poetry run qry "your search query" --scope 2 --max-depth 3
+poetry run qry "your search query" --scope /path/to/search --depth 3
 ```
 
 ### Direct Python execution:
@@ -40,7 +40,7 @@ poetry run qry "your search query" --scope 2 --max-depth 3
 python qry.py "your search query"
 
 # With custom scope and depth
-python qry.py "your search query" --scope 1 --max-depth 2
+python qry.py "your search query" --scope /path/to/search --depth 2
 ```
 
 ## 🔧 Available Options
@@ -59,10 +59,12 @@ Commands:
   help     Show help
 
 Search Options:
-  -t, --type TEXT     Filter by file type (comma-separated)
-  -d, --last-days INT  Filter by last N days
+  -t, --type TEXT      Filter by file type (comma-separated)
+  -s, --scope TEXT     Search scope directory (default: current directory)
+  -d, --depth INT      Maximum depth to search
+  --last-days INT      Filter by last N days
   -l, --limit INT      Maximum number of results (default: 100)
-  --no-preview        Disable preview generation
+  --no-preview         Disable preview generation
   -v, --verbose        Enable verbose output
 ```
 
@@ -123,9 +125,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - Special thanks to the developers of the amazing open-source libraries that make this project possible.
   - `2`: Two levels up, etc.
 
-- `--max-depth`: Maximum directory depth to search (default: 2)
+- `--depth`: Maximum directory depth to search (default: unlimited)
   - `1`: Current directory only
-  - `2`: Current directory + one level down (default)
+  - `2`: Current directory + one level down
   - `3`: Two levels down, etc.
 
 ## 🌟 Features
@@ -220,13 +222,13 @@ For more examples and detailed documentation, see [EXAMPLES.md](EXAMPLES.md).
 qry "invoice OR faktura"
 
 # Search for images with EXIF data
-qry "image with exif" --max-depth 3
+qry "image with exif" --depth 3
 
-# Search in parent directory
-qry "important document" --scope 2
+# Search in a specific directory
+qry "important document" --scope /path/to/docs
 
 # Deep search in current directory only
-qry "config" --scope 0 --max-depth 5
+qry "config" --scope . --depth 5
 ```
 
 ### Advanced Search
