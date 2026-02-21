@@ -11,6 +11,7 @@ except ImportError:  # pragma: no cover - depends on optional runtime dependency
 
 from ..core.models import SearchResult, SearchQuery
 from .base import SearchEngine
+from .fast_search import FastContentSearcher
 
 
 class SimpleSearchEngine(SearchEngine):
@@ -20,6 +21,7 @@ class SimpleSearchEngine(SearchEngine):
         """Initialize the simple search engine."""
         self.max_workers = max_workers or os.cpu_count()
         self.mime = magic.Magic(mime=True) if magic else None
+        self._fast_searcher = FastContentSearcher()
     
     def search(self, query: SearchQuery, search_paths: List[str]) -> List[SearchResult]:
         """Search for files matching the query."""
@@ -110,10 +112,14 @@ class SimpleSearchEngine(SearchEngine):
             # If searching content and no filename match, try file content
             if query.search_content:
                 if not filename_match:
-                    return self._search_in_content(result.file_path, query_lower)
-                return True
+                    text_match = self._search_in_content(result.file_path, query_lower)
+                else:
+                    text_match = True
             else:
-                return filename_match
+                text_match = filename_match
+
+            if not text_match:
+                return False
             
         # File type filtering
         if query.file_types and result.file_type.lstrip('.') not in query.file_types:
@@ -128,24 +134,12 @@ class SimpleSearchEngine(SearchEngine):
         return True
     
     def _search_in_content(self, file_path: str, query_lower: str) -> bool:
-        """Search for query text in file content."""
-        try:
-            # Skip binary files
-            if self.mime:
-                mime_type = self.mime.from_file(file_path)
-                if not mime_type.startswith(('text/', 'application/json', 'application/xml')):
-                    return False
-            
-            # Read and search in file
-            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
-                content = f.read().lower()
-                if " or " in query_lower:
-                    terms = [t.strip() for t in query_lower.split(" or ") if t.strip()]
-                    return any(t in content for t in terms)
-                else:
-                    return query_lower in content
-        except Exception:
-            return False
+        """Search for query text in file content using FastContentSearcher."""
+        if " or " in query_lower:
+            patterns = [t.strip() for t in query_lower.split(" or ") if t.strip()]
+        else:
+            patterns = [query_lower]
+        return self._fast_searcher.search_file(file_path, patterns, case_sensitive=False)
     
     def get_name(self) -> str:
         """Get the name of the search engine."""
