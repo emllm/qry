@@ -59,25 +59,17 @@ class CLICommands:
         if masks:
             min_depth = min(depth for _, depth in masks)
             max_depth = max(depth for _, depth in masks)
-            depth_str = f"{min_depth} to {max_depth}" if min_depth != max_depth else str(min_depth)
             
-            # Jeżeli max_depth z zapytania był ustawiony, wyświetl informację
+            # Wybierz reprezentatywną maskę (najgłębszą lub jedyną)
+            sorted_masks = sorted(masks, key=lambda x: x[1], reverse=True)
+            representative_mask = sorted_masks[0][0]
+            
+            depth_str = f"{min_depth}" if min_depth == max_depth else f"{min_depth} to {max_depth}"
             limit_str = f" (limit: {query.max_depth})" if query.max_depth is not None else ""
-            print(f"Scope: {base_path} | Depth: {depth_str} level(s){limit_str}")
+            print(f"Scope: {representative_mask} | Depth: {depth_str} level(s){limit_str}")
         else:
             limit_str = f" (limit: {query.max_depth})" if query.max_depth is not None else ""
             print(f"Scope: {base_path} | Depth: 0 levels{limit_str}")
-            
-        print("-" * 40)
-        
-        if not results:
-            print("No results found.")
-            return 0
-                
-        # Sort by depth, then alphabetically
-        sorted_masks = sorted(masks, key=lambda x: (x[1], x[0]))
-        for i, (mask, _) in enumerate(sorted_masks, 1):
-            print(f"{i}. {mask}")
         
         return 0
     
