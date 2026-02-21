@@ -72,8 +72,15 @@ class SimpleSearchEngine(SearchEngine):
     def _matches_query(self, result: SearchResult, query: SearchQuery) -> bool:
         """Check if a result matches the query."""
         # Basic filename matching
-        if query.query_text and query.query_text.lower() not in result.file_path.lower():
-            return False
+        if query.query_text:
+            query_lower = query.query_text.lower()
+            if " or " in query_lower:
+                terms = [t.strip() for t in query_lower.split(" or ") if t.strip()]
+                if not any(t in result.file_path.lower() for t in terms):
+                    return False
+            else:
+                if query_lower not in result.file_path.lower():
+                    return False
             
         # File type filtering
         if query.file_types and result.file_type.lstrip('.') not in query.file_types:

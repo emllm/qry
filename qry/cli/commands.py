@@ -221,6 +221,15 @@ def create_parser() -> argparse.ArgumentParser:
 def main(args: Optional[List[str]] = None) -> int:
     """Main entry point for the CLI."""
     parser = create_parser()
+    
+    if args is None:
+        args = sys.argv[1:]
+        
+    # If the first argument is not a known command and doesn't start with a flag, assume it's a search query
+    known_commands = {"search", "interactive", "i", "shell", "batch", "version", "help"}
+    if args and args[0] not in known_commands and not args[0].startswith('-'):
+        args = ["search"] + args
+        
     parsed_args = parser.parse_args(args)
     
     if not parsed_args.command or parsed_args.command == "help":
