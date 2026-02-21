@@ -1,5 +1,6 @@
 """Simple file search engine implementation."""
 import os
+import re
 from pathlib import Path
 from datetime import datetime
 from typing import Generator, List, Optional
@@ -107,12 +108,23 @@ class SimpleSearchEngine(SearchEngine):
     
     def _matches_query(self, result: SearchResult, query: SearchQuery) -> bool:
         """Check if a result matches the query."""
-        # Basic filename matching
+        # Size filtering
+        if query.min_size is not None and result.size < query.min_size:
+            return False
+        if query.max_size is not None and result.size > query.max_size:
+            return False
+
+        # Text / regex matching
         if query.query_text:
             query_lower = query.query_text.lower()
-            
-            # Search in filename
-            if " or " in query_lower:
+
+            if query.use_regex:
+                try:
+                    rx = re.compile(query.query_text, re.IGNORECASE)
+                except re.error:
+                    rx = re.compile(re.escape(query.query_text), re.IGNORECASE)
+                filename_match = bool(rx.search(result.file_path))
+            elif " or " in query_lower:
                 terms = [t.strip() for t in query_lower.split(" or ") if t.strip()]
                 filename_match = any(t in result.file_path.lower() for t in terms)
             else:
@@ -120,9 +132,9 @@ class SimpleSearchEngine(SearchEngine):
             
             mode = getattr(query, 'search_mode', 'filename')
             if mode == "content":
-                match = self._search_in_content(result.file_path, query_lower)
+                match = self._search_in_content(result.file_path, query, query_lower)
             elif mode == "both":
-                match = filename_match or self._search_in_content(result.file_path, query_lower)
+                match = filename_match or self._search_in_content(result.file_path, query, query_lower)
             else:  # filename (default)
                 match = filename_match
 
@@ -141,13 +153,58 @@ class SimpleSearchEngine(SearchEngine):
                 
         return True
     
-    def _search_in_content(self, file_path: str, query_lower: str) -> bool:
-        """Search for query text in file content using FastContentSearcher."""
+    def _search_in_content(self, file_path: str, query: SearchQuery, query_lower: str) -> bool:
+        """Search for query text in file content."""
+        if query.use_regex:
+            return self._regex_search_file(file_path, query.query_text)
         if " or " in query_lower:
             patterns = [t.strip() for t in query_lower.split(" or ") if t.strip()]
         else:
             patterns = [query_lower]
         return self._fast_searcher.search_file(file_path, patterns, case_sensitive=False)
+
+    @staticmethod
+    def _regex_search_file(file_path: str, pattern: str) -> bool:
+        """Search file content with a regex pattern."""
+        try:
+            rx = re.compile(pattern, re.IGNORECASE)
+            with open(file_path, 'r', errors='ignore') as f:
+                for line in f:
+                    if rx.search(line):
+                        return True
+        except (OSError, IOError):
+            pass
+        return False
+
+    @staticmethod
+    def get_content_snippet(file_path: str, query_text: str, context_lines: int = 1, use_regex: bool = False) -> Optional[str]:
+        """Return first matching line with context for content search preview."""
+        try:
+            if use_regex:
+                try:
+                    rx = re.compile(query_text, re.IGNORECASE)
+                except re.error:
+                    rx = re.compile(re.escape(query_text), re.IGNORECASE)
+            else:
+                rx = None
+            q_lower = query_text.lower()
+            terms = [t.strip() for t in q_lower.split(" or ") if t.strip()] if " or " in q_lower else [q_lower]
+            lines = []
+            with open(file_path, 'r', errors='ignore') as f:
+                lines = f.readlines()
+            for i, line in enumerate(lines):
+                hit = rx.search(line) if rx else any(t in line.lower() for t in terms)
+                if hit:
+                    start = max(0, i - context_lines)
+                    end = min(len(lines), i + context_lines + 1)
+                    snippet_lines = []
+                    for j in range(start, end):
+                        prefix = "»" if j == i else " "
+                        snippet_lines.append(f"{prefix} {j + 1}: {lines[j].rstrip()}")
+                    return "\n".join(snippet_lines)
+        except (OSError, IOError):
+            pass
+        return None
     
     def get_name(self) -> str:
         """Get the name of the search engine."""

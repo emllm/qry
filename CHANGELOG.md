@@ -1,18 +1,24 @@
 ## [Unreleased]
 
 ### Added
-- Streaming search via `search_iter()` — results yielded one at a time, Ctrl+C stops mid-search and outputs partial YAML/JSON
-- `--exclude DIR` / `-e DIR` flag — add extra directories to skip (repeatable, comma-separated)
-- `--no-exclude` flag — disable all default directory exclusions
+- **Streaming search** via `search_iter()` — results yielded one at a time, Ctrl+C stops mid-search and outputs partial YAML/JSON
+- **Directory exclusions** — `--exclude DIR` / `-e DIR` flag (repeatable, comma-separated); `--no-exclude` to disable defaults
 - Default exclusions: `.git`, `.venv`, `__pycache__`, `dist`, `node_modules`, `.tox`, `.mypy_cache`
-- `--output json` flag — JSON output in addition to YAML
-- Public Python API: `qry.search()` and `qry.search_iter()` — importable functions for use in other applications
-- `excluded` field in YAML/JSON output showing active exclusion list
+- **Output formats** — `--output yaml` (default), `--output json`, `--output paths` (one path per line, pipe-friendly)
+- **Python API** — `qry.search()` and `qry.search_iter()` importable functions for use in other applications
+- **Regex search** — `--regex` / `-r` flag treats query as a regular expression (filenames and content)
+- **Size filtering** — `--min-size SIZE` / `--max-size SIZE` with human-readable units (1k, 10MB, 1G)
+- **Sort results** — `--sort name|size|date` for ordered output
+- **Content preview** — `--preview` / `-p` shows matching line with context for content search (`-c`)
+- `scope` field in output shows glob depth pattern (`/path/*/*/*`)
+- `depth` field shows actual result depth range
+- `excluded` field shows active exclusion list
 
 ### Changed
 - Default result limit changed from 100 to unlimited (use `-l N` to cap)
-- Output format changed from plain text to YAML (default) or JSON (`-o json`)
-- `search_command` now streams results through generator instead of collecting all first
+- Output format changed from plain text to structured YAML/JSON
+- Search engine uses generator (`search_iter`) internally for streaming
+- Python API extended with `min_size`, `max_size`, `regex`, `sort_by` parameters
 
 ### Fixed
 - Search results were never printed (only scope/depth summary was shown)

@@ -2,6 +2,7 @@
 import argparse
 import json as _json
 import os
+import re
 import sys
 from datetime import datetime, timedelta
 from typing import List, Optional
@@ -11,8 +12,20 @@ import yaml
 from qry import __version__
 from qry.core.models import SearchQuery
 from qry.engines import get_default_engine, get_available_engines, get_engine
+from qry.engines.simple import SimpleSearchEngine
 from qry.cli.interactive import run_interactive
 from qry.cli.batch import run_batch
+
+_SIZE_UNITS = {'b': 1, 'k': 1024, 'kb': 1024, 'm': 1024**2, 'mb': 1024**2, 'g': 1024**3, 'gb': 1024**3}
+
+
+def _parse_size(value: str) -> int:
+    """Parse human-readable size string like '10MB', '500k', '1G' to bytes."""
+    value = value.strip().lower()
+    for suffix, mult in sorted(_SIZE_UNITS.items(), key=lambda x: -len(x[0])):
+        if value.endswith(suffix):
+            return int(float(value[:-len(suffix)]) * mult)
+    return int(value)
 
 
 class CLICommands:
@@ -44,7 +57,9 @@ class CLICommands:
         search_type = mode_labels.get(query.search_mode, 'filename')
 
         collected = []
+        collected_results = []
         interrupted = False
+        show_preview = getattr(args, 'preview', False) and query.search_mode in ('content', 'both')
         try:
             iterator = (
                 self.engine.search_iter(query, search_paths)
@@ -53,18 +68,62 @@ class CLICommands:
             )
             for result in iterator:
                 collected.append(result.file_path)
+                if show_preview or query.sort_by:
+                    collected_results.append(result)
         except KeyboardInterrupt:
             interrupted = True
 
+        # Sort results if requested
+        if query.sort_by and collected_results:
+            sort_key = {
+                'name': lambda r: r.file_path.lower(),
+                'size': lambda r: r.size,
+                'date': lambda r: r.timestamp,
+            }.get(query.sort_by, lambda r: r.file_path.lower())
+            collected_results.sort(key=sort_key)
+            collected = [r.file_path for r in collected_results]
+
+        # --output paths: one path per line, pipe-friendly
+        if output_fmt == 'paths':
+            for p in collected:
+                print(p)
+            if interrupted:
+                print("# interrupted by user (Ctrl+C)", file=sys.stderr)
+            return 0
+
+        # Build scope_pattern: base_path + /*/* … showing depth spread of results
+        if collected:
+            depths = set()
+            for p in collected:
+                abs_p = os.path.abspath(p)
+                try:
+                    rel = os.path.relpath(abs_p, base_path)
+                    parts = [x for x in rel.split(os.sep) if x and x != '.']
+                    depths.add(len(parts))
+                except ValueError:
+                    depths.add(0)
+            min_d, max_d = min(depths), max(depths)
+            scope_pattern = base_path + (('/' + '/'.join(['*'] * max_d)) if max_d else '')
+        else:
+            scope_pattern = base_path
+            min_d = max_d = 0
+
+        depth_info = (f"{min_d} to {max_d}" if min_d != max_d else str(max_d)) + " level(s)"
+
         meta = {
-            'scope': base_path,
+            'scope': scope_pattern,
+            'depth': depth_info,
             'query': query.query_text or None,
             'search_type': search_type,
             'depth_limit': query.max_depth,
             'excluded': query.exclude_dirs if query.exclude_dirs else None,
             'interrupted': True if interrupted else None,
             'total': len(collected),
-            'results': collected,
+            'results': collected if not show_preview else None,
+            'matches': [
+                {'path': r.file_path, 'snippet': SimpleSearchEngine.get_content_snippet(r.file_path, query.query_text, use_regex=query.use_regex)}
+                for r in collected_results
+            ] if show_preview else None,
         }
         meta = {k: v for k, v in meta.items() if v is not None}
 
@@ -112,6 +171,11 @@ class CLICommands:
         if getattr(args, 'no_exclude', False):
             exclude_dirs = []
 
+        min_size = _parse_size(args.min_size) if getattr(args, 'min_size', None) else None
+        max_size = _parse_size(args.max_size) if getattr(args, 'max_size', None) else None
+        use_regex = getattr(args, 'regex', False)
+        sort_by = getattr(args, 'sort', None)
+
         return SearchQuery(
             query_text=' '.join(args.query) if args.query else "",
             file_types=file_types,
@@ -121,6 +185,10 @@ class CLICommands:
             max_depth=args.depth,
             search_mode=search_mode,
             exclude_dirs=exclude_dirs,
+            min_size=min_size,
+            max_size=max_size,
+            use_regex=use_regex,
+            sort_by=sort_by,
         )
     
     def version_command(self, args: argparse.Namespace) -> int:
@@ -239,6 +307,33 @@ def create_parser() -> argparse.ArgumentParser:
         help="Disable preview generation",
     )
     search_parser.add_argument(
+        "--min-size",
+        metavar="SIZE",
+        help="Minimum file size (e.g. 1k, 10MB, 1G)",
+    )
+    search_parser.add_argument(
+        "--max-size",
+        metavar="SIZE",
+        help="Maximum file size (e.g. 100k, 5MB)",
+    )
+    search_parser.add_argument(
+        "--regex",
+        "-r",
+        action="store_true",
+        help="Treat query as a regular expression",
+    )
+    search_parser.add_argument(
+        "--sort",
+        choices=["name", "size", "date"],
+        help="Sort results by name, size, or date",
+    )
+    search_parser.add_argument(
+        "--preview",
+        "-p",
+        action="store_true",
+        help="Show content snippet with line number for -c matches",
+    )
+    search_parser.add_argument(
         "--exclude",
         "-e",
         action="append",
@@ -253,8 +348,8 @@ def create_parser() -> argparse.ArgumentParser:
     search_parser.add_argument(
         "--output",
         "-o",
-        help="Output format (yaml, json)",
-        choices=["yaml", "json"],
+        help="Output format (yaml, json, paths)",
+        choices=["yaml", "json", "paths"],
         default="yaml",
     )
     
