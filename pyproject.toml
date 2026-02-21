@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "qry"
-version = "0.2.2"
+version = "0.2.3"
 description = "Ultra-fast file search and processing tool"
 authors = [
     "Tom Sapletta <info@softreck.dev>",
@@ -29,7 +29,7 @@ prompt-toolkit = "^3.0.51"
 
 [tool.poetry.scripts]
 qry = "qry.cli.commands:main"
-qry-api = "qry.api.app:app"
+qry-api = "qry.api.app:main"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]

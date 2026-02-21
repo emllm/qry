@@ -62,6 +62,7 @@ class SearchQuery:
     include_previews: bool = True
     max_results: int = 1000
     max_depth: Optional[int] = None
+    search_content: bool = False
 
 
 class SearchError(Exception):

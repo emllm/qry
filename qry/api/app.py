@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import logging
 from pathlib import Path
 
@@ -60,3 +61,21 @@ def create_app() -> FastAPI:
 
 
 app = create_app()
+
+
+def main() -> int:
+    """Run API server from the console script entrypoint."""
+    parser = argparse.ArgumentParser(description="Run qry API server")
+    parser.add_argument("--host", default="127.0.0.1", help="Host to bind")
+    parser.add_argument("--port", type=int, default=8000, help="Port to bind")
+    parser.add_argument("--reload", action="store_true", help="Enable auto-reload")
+    args = parser.parse_args()
+
+    import uvicorn
+
+    uvicorn.run("qry.api.app:app", host=args.host, port=args.port, reload=args.reload)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -69,11 +69,25 @@ class CLICommands:
             print(f"Depth: {depth_str} level(s)")
             if query.max_depth is not None:
                 print(f"Limit: {query.max_depth}")
+            if query.query_text:
+                if query.search_content:
+                    search_type = "file content"
+                elif query.file_types:
+                    search_type = "filename pattern"
+                else:
+                    search_type = "filename"
+                print(f"Description: Searching for '{query.query_text}' ({search_type}) across directory levels")
+            else:
+                print("Description: Searching all files across directory levels")
         else:
             print(f"Scope: {base_path}")
             print(f"Depth: 0 levels")
             if query.max_depth is not None:
                 print(f"Limit: {query.max_depth}")
+            if query.query_text:
+                print(f"Description: No files matching '{query.query_text}' found")
+            else:
+                print("Description: No files found in search scope")
         
         return 0
     
@@ -100,7 +114,8 @@ class CLICommands:
             date_range=date_range,
             max_results=args.limit,
             include_previews=not args.no_preview,
-            max_depth=args.depth
+            max_depth=args.depth,
+            search_content=getattr(args, 'content', False)
         )
     
     def version_command(self, args: argparse.Namespace) -> int:
@@ -193,6 +208,12 @@ def create_parser() -> argparse.ArgumentParser:
         "--last-days",
         type=int,
         help="Filter by last N days",
+    )
+    search_parser.add_argument(
+        "--content",
+        "-c",
+        action="store_true",
+        help="Search in file contents (not just filenames)",
     )
     search_parser.add_argument(
         "--limit",

@@ -1,253 +1,110 @@
 # qry
 
-Ultra-fast file search and metadata extraction tool
+[![CI](https://github.com/emllm/qry/actions/workflows/ci.yml/badge.svg)](https://github.com/emllm/qry/actions/workflows/ci.yml)
+[![License: Apache-2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![Python](https://img.shields.io/badge/python-3.8%2B-blue)](pyproject.toml)
 
-## 🚀 Installation
+Ultra-fast file search and metadata extraction tool.
 
-Using Poetry (recommended):
+## Features
+
+- Fast filesystem search with optional depth and date filters
+- CLI modes: `search`, `interactive`, `batch`, `version`
+- HTTP API (FastAPI) for JSON and HTML search responses
+- Metadata extraction for matched files (size, timestamps, content type)
+
+## Installation
+
+### Poetry (recommended)
 
 ```bash
-# Install Poetry if you don't have it
-curl -sSL https://install.python-poetry.org | python3 -
-
-
-# Clone the repository and install dependencies
-poetry install
+poetry install --with dev
 ```
 
-Or using pip:
+### pip (minimal)
 
 ```bash
 pip install -r requirements.txt
 ```
 
-## 🚀 Quick Start
-
-### Using Poetry:
+## Quick start
 
 ```bash
-# Search with default scope (current directory) and depth (unlimited)
-poetry run qry "your search query"
+# search in current directory
+poetry run qry "invoice"
 
-# Custom scope and depth
-poetry run qry "your search query" --scope /path/to/search --depth 3
+# search with scope/depth limit
+poetry run qry "README" --scope . --depth 2 --limit 20
+
+# show version and engines
+poetry run qry version
 ```
 
-### Direct Python execution:
+## CLI usage
 
 ```bash
-# Basic search
-python qry.py "your search query"
+qry search [query ...] [--type EXT1,EXT2] [--scope PATH] [--depth N]
+           [--last-days N] [--limit N] [--output text|json|html]
 
-# With custom scope and depth
-python qry.py "your search query" --scope /path/to/search --depth 2
+qry interactive
+qry batch <input_file> [--output-file FILE] [--format text|json|csv] [--workers N]
+qry version
 ```
 
-## 🔧 Available Options
-
-### CLI Options
-
-```
-Usage: qry [OPTIONS] COMMAND [ARGS]...
-
-Options:
-  --help  Show this message and exit.
-
-Commands:
-  search   Search for files
-  version  Show version information
-  help     Show help
-
-Search Options:
-  -t, --type TEXT      Filter by file type (comma-separated)
-  -s, --scope TEXT     Search scope directory (default: current directory)
-  -d, --depth INT      Maximum depth to search
-  --last-days INT      Filter by last N days
-  -l, --limit INT      Maximum number of results (default: 100)
-  --no-preview         Disable preview generation
-  -v, --verbose        Enable verbose output
-```
-
-### API Endpoints
-
-- `GET /api/search` - Search for files
-  - Parameters:
-    - `q`: Search query (required)
-    - `types`: Comma-separated list of file types
-    - `limit`: Maximum number of results (default: 100)
-    - `last_days`: Filter by last N days
-    - `engine`: Search engine to use (default: 'default')
-
-## 🛠️ Development
-
-### Project Structure
-
-- `qry/cli/` - Command-line interface
-- `qry/api/` - REST API implementation
-- `qry/core/` - Core models and interfaces
-- `qry/engines/` - Search engine implementations
-- `qry/utils/` - Utility functions
-- `qry/web/` - Web interface components
-
-### Adding a New Search Engine
-
-1. Create a new file in `qry/engines/`
-2. Implement the `SearchEngine` interface from `qry.engines.base`
-3. Register your engine in `qry/engines/__init__.py`
-
-### Running Tests
+Examples:
 
 ```bash
-# Install test dependencies
-pip install -e ".[test]"
-
-# Run tests
-pytest
+poetry run qry "invoice OR faktura" --scope /data/docs --depth 3
+poetry run qry search "report" --type pdf,docx --last-days 7
+poetry run qry batch queries.txt --format json --output-file results.json
 ```
 
-## 🤝 Contributing
+## API usage
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Run server:
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🙏 Acknowledgments
-
-- Thanks to all contributors who have helped improve this project.
-- Special thanks to the developers of the amazing open-source libraries that make this project possible.
-  - `2`: Two levels up, etc.
-
-- `--depth`: Maximum directory depth to search (default: unlimited)
-  - `1`: Current directory only
-  - `2`: Current directory + one level down
-  - `3`: Two levels down, etc.
-
-## 🌟 Features
-
-
-
-## 🚀 **Najszybsze rozwiązania według kategorii:**
-
-### **📊 Przeszukiwanie JSON/CSV w HTML/MHTML:**
-**Najszybsze języki/narzędzia:**
-1. **Rust + ripgrep** - najszybszy dla prostych wzorców regex
-2. **C++ + PCRE2** - maksymalna wydajność dla złożonych wzorców  
-3. **Python + ujson + lxml** - najlepszy stosunek szybkość/łatwość
-4. **Go + fastjson** - bardzo szybki, łatwy deployment
-5. **Node.js + cheerio** - dobry dla projektów JS
-
-### **🔍 Ekstraktowanie metadanych:**
-**Najszybsze biblioteki:**
-- **Obrazy**: `exiv2` (C++), `PIL/Pillow` (Python), `sharp` (Node.js)
-- **PDF**: `PyMuPDF/fitz` (Python), `PDFtk` (Java), `pdfinfo` (Poppler)
-- **Email**: `email` (Python), `JavaMail` (Java), `mail` (Go)  
-- **Audio**: `eyed3` (Python), `TagLib` (C++), `ffprobe` (FFmpeg)
-- **Video**: `OpenCV` (Python/C++), `ffprobe` (FFmpeg), `MediaInfo`
-
-### **⚡ Najszybsze konwersje formatów:**
-1. **FFmpeg** - niepobiły w audio/video (C, Python bindings)
-2. **ImageMagick/GraphicsMagick** - obrazy (CLI + bindings)  
-3. **Pandoc** - dokumenty tekstowe (Haskell, CLI)
-4. **LibreOffice CLI** - dokumenty biurowe
-5. **wkhtmltopdf** - HTML→PDF (WebKit engine)
-
-### **🌐 Najszybsze generowanie HTML:**
-1. **Template engines**: Jinja2 (Python), Mustache (multi-lang), Handlebars (JS)
-2. **Direct generation**: f-strings (Python), StringBuilder (Java/C#)
-3. **Component-based**: React SSR, Vue SSR dla złożonych UI
-4. **Streaming**: Writer patterns dla bardzo dużych plików
-
-## ✨ Key Features
-
-```
-┌───────────────────────────────────────────────────────────┐
-│                      QRY Features                        │
-├───────────────────────────────┬─────────────────────────┤
-│ 🔍 Smart Search               │ Fast pattern matching   │
-│ 📊 Metadata Extraction        │ EXIF, PDF, documents    │
-| ⚡ Parallel Processing        | Multi-core performance  │
-| 🎨 Format Conversion         | Convert between formats  │
-| 📱 Responsive Output         | HTML, JSON, text        │
-| 🛡️  Smart Caching            | Faster repeated queries  │
-└───────────────────────────────┴─────────────────────────┘
-```
-
-## 🚀 Getting Started
-
-### Basic Search
 ```bash
-# Find all Python files containing 'class'
-qry "class" --type py
-
-# Search with regex
-qry "import\s+\w+" --regex
+poetry run qry-api --host 127.0.0.1 --port 8000
 ```
 
-### Advanced Usage
-```mermaid
-graph LR
-    A[Query] --> B{Type?}
-    B -->|Search| C[File Search]
-    B -->|Metadata| D[Metadata Extraction]
-    B -->|Convert| E[Format Conversion]
-    
-    C --> F[Filter Results]
-    D --> F
-    E --> F
-    
-    F --> G[Format Output]
-    G --> H[Display Results]
-    
-    style A fill:#f9f,stroke:#333
-    style H fill:#9f9,stroke:#333
-```
+Main endpoints:
 
-## 📚 Documentation
+- `GET /api/search`
+- `GET /api/search/html`
+- `GET /api/engines`
+- `GET /api/health`
+- OpenAPI docs: `GET /api/docs`
 
-For more examples and detailed documentation, see [EXAMPLES.md](EXAMPLES.md).
+## Development
 
-## 🎯 Usage Examples
+### Run tests
 
-### Basic Search
 ```bash
-# Search for invoices
-qry "invoice OR faktura"
-
-# Search for images with EXIF data
-qry "image with exif" --depth 3
-
-# Search in a specific directory
-qry "important document" --scope /path/to/docs
-
-# Deep search in current directory only
-qry "config" --scope . --depth 5
+poetry run pytest -q
 ```
 
-### Advanced Search
+### Useful make targets
+
 ```bash
-# Find PDFs modified in the last 7 days
-qry "filetype:pdf mtime:>7d"
-
-# Search for large files
-qry "size:>10MB"
-
-# Find files with specific metadata
-qry "author:john created:2024"
+make install
+make test
+make lint
+make type-check
+make run-api
 ```
 
-System automatycznie:
-- Wykrywa typ zapytania  
-- Wybiera odpowiednie parsery
-- Generuje zoptymalizowany HTML
-- Tworzy interaktywne GUI
+## Project structure
+
+- `qry/cli/` – CLI commands and interactive mode
+- `qry/api/` – FastAPI application and routes
+- `qry/core/` – core data models
+- `qry/engines/` – search engine implementations
+- `qry/web/` – HTML renderer/templates integration
+- `tests/` – test suite
+
+## Additional docs
+
+- Usage examples: [EXAMPLES.md](EXAMPLES.md)
 
 ## License
 

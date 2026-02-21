@@ -99,13 +99,21 @@ class SimpleSearchEngine(SearchEngine):
         # Basic filename matching
         if query.query_text:
             query_lower = query.query_text.lower()
+            
+            # Search in filename
             if " or " in query_lower:
                 terms = [t.strip() for t in query_lower.split(" or ") if t.strip()]
-                if not any(t in result.file_path.lower() for t in terms):
-                    return False
+                filename_match = any(t in result.file_path.lower() for t in terms)
             else:
-                if query_lower not in result.file_path.lower():
-                    return False
+                filename_match = query_lower in result.file_path.lower()
+            
+            # If searching content and no filename match, try file content
+            if query.search_content:
+                if not filename_match:
+                    return self._search_in_content(result.file_path, query_lower)
+                return True
+            else:
+                return filename_match
             
         # File type filtering
         if query.file_types and result.file_type.lstrip('.') not in query.file_types:
@@ -118,6 +126,26 @@ class SimpleSearchEngine(SearchEngine):
                 return False
                 
         return True
+    
+    def _search_in_content(self, file_path: str, query_lower: str) -> bool:
+        """Search for query text in file content."""
+        try:
+            # Skip binary files
+            if self.mime:
+                mime_type = self.mime.from_file(file_path)
+                if not mime_type.startswith(('text/', 'application/json', 'application/xml')):
+                    return False
+            
+            # Read and search in file
+            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                content = f.read().lower()
+                if " or " in query_lower:
+                    terms = [t.strip() for t in query_lower.split(" or ") if t.strip()]
+                    return any(t in content for t in terms)
+                else:
+                    return query_lower in content
+        except Exception:
+            return False
     
     def get_name(self) -> str:
         """Get the name of the search engine."""
