@@ -63,6 +63,7 @@ class SearchQuery:
     max_results: int = 1000
     max_depth: Optional[int] = None
     search_mode: str = "filename"  # "filename", "content", or "both"
+    exclude_dirs: List[str] = field(default_factory=lambda: ['.git', '.venv', '__pycache__', 'dist', 'node_modules', '.tox', '.mypy_cache'])
 
 
 class SearchError(Exception):

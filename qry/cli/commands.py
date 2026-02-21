@@ -1,9 +1,12 @@
 """Command-line interface commands for qry."""
 import argparse
+import json as _json
 import os
 import sys
 from datetime import datetime, timedelta
 from typing import List, Optional
+
+import yaml
 
 from qry import __version__
 from qry.core.models import SearchQuery
@@ -35,56 +38,44 @@ class CLICommands:
         """
         query = self._build_search_query(args)
         search_paths = [args.scope]
-        results = self.engine.search(query, search_paths)  # Search in specified directory
-        
-        # Format and print results
         base_path = os.path.abspath(search_paths[0])
-        masks = set()
-        
-        for result in results:
-            abs_path = os.path.abspath(result.file_path)
-            # Obliczanie względnej ścieżki do miejsca przeszukiwania
-            try:
-                rel_path = os.path.relpath(abs_path, base_path)
-                parts = rel_path.split(os.sep)
-                # Odrzucamy kropkę i puste elementy, jeśli występują
-                parts = [p for p in parts if p and p != '.']
-                # Tworzymy maskę składającą się z basePath i odpowiedniej liczby gwiazdek
-                mask = os.path.join(base_path, *(['*'] * len(parts)))
-                masks.add((mask, len(parts)))
-            except ValueError:
-                # W razie błędu fallback do absolutnej ścieżki
-                masks.add((abs_path, 0))
-                
-        if masks:
-            min_depth = min(depth for _, depth in masks)
-            max_depth = max(depth for _, depth in masks)
-            
-            # Wybierz reprezentatywną maskę (najgłębszą lub jedyną)
-            sorted_masks = sorted(masks, key=lambda x: x[1], reverse=True)
-            representative_mask = sorted_masks[0][0]
-            
-            depth_str = f"{min_depth}" if min_depth == max_depth else f"{min_depth} to {max_depth}"
-            print(f"Scope: {representative_mask}")
-            print(f"Depth: {depth_str} level(s)")
-            if query.max_depth is not None:
-                print(f"Limit: {query.max_depth}")
-            if query.query_text:
-                mode_labels = {"filename": "filename", "content": "file content", "both": "filename + content"}
-                search_type = mode_labels.get(query.search_mode, query.search_mode)
-                print(f"Description: Searching for '{query.query_text}' ({search_type}) across directory levels")
-            else:
-                print("Description: Searching all files across directory levels")
+        output_fmt = getattr(args, 'output', 'yaml')
+        mode_labels = {"filename": "filename", "content": "file content", "both": "filename + content"}
+        search_type = mode_labels.get(query.search_mode, 'filename')
+
+        collected = []
+        interrupted = False
+        try:
+            iterator = (
+                self.engine.search_iter(query, search_paths)
+                if hasattr(self.engine, 'search_iter')
+                else iter(self.engine.search(query, search_paths))
+            )
+            for result in iterator:
+                collected.append(result.file_path)
+        except KeyboardInterrupt:
+            interrupted = True
+
+        meta = {
+            'scope': base_path,
+            'query': query.query_text or None,
+            'search_type': search_type,
+            'depth_limit': query.max_depth,
+            'excluded': query.exclude_dirs if query.exclude_dirs else None,
+            'interrupted': True if interrupted else None,
+            'total': len(collected),
+            'results': collected,
+        }
+        meta = {k: v for k, v in meta.items() if v is not None}
+
+        if output_fmt == 'json':
+            print(_json.dumps(meta, ensure_ascii=False, indent=2))
         else:
-            print(f"Scope: {base_path}")
-            print(f"Depth: 0 levels")
-            if query.max_depth is not None:
-                print(f"Limit: {query.max_depth}")
-            if query.query_text:
-                print(f"Description: No files matching '{query.query_text}' found")
-            else:
-                print("Description: No files found in search scope")
-        
+            print(yaml.dump(meta, default_flow_style=False, allow_unicode=True, sort_keys=False))
+
+        if interrupted:
+            print("# interrupted by user (Ctrl+C)", file=sys.stderr)
+
         return 0
     
     def _build_search_query(self, args: argparse.Namespace) -> SearchQuery:
@@ -111,14 +102,25 @@ class CLICommands:
         else:
             search_mode = "filename"
 
+        exclude_dirs = list(SearchQuery.__dataclass_fields__['exclude_dirs'].default_factory())
+        if getattr(args, 'exclude', None):
+            for e in args.exclude:
+                for part in e.split(','):
+                    part = part.strip()
+                    if part and part not in exclude_dirs:
+                        exclude_dirs.append(part)
+        if getattr(args, 'no_exclude', False):
+            exclude_dirs = []
+
         return SearchQuery(
             query_text=' '.join(args.query) if args.query else "",
             file_types=file_types,
             date_range=date_range,
-            max_results=args.limit,
+            max_results=args.limit if args.limit > 0 else 10_000_000,
             include_previews=not args.no_preview,
             max_depth=args.depth,
-            search_mode=search_mode
+            search_mode=search_mode,
+            exclude_dirs=exclude_dirs,
         )
     
     def version_command(self, args: argparse.Namespace) -> int:
@@ -228,8 +230,8 @@ def create_parser() -> argparse.ArgumentParser:
         "--limit",
         "-l",
         type=int,
-        default=100,
-        help="Maximum number of results (default: 100)",
+        default=0,
+        help="Maximum number of results (default: 0 = unlimited)",
     )
     search_parser.add_argument(
         "--no-preview",
@@ -237,11 +239,23 @@ def create_parser() -> argparse.ArgumentParser:
         help="Disable preview generation",
     )
     search_parser.add_argument(
+        "--exclude",
+        "-e",
+        action="append",
+        metavar="DIR",
+        help="Exclude directory name(s), comma-separated. Can be repeated. Default excludes: .git .venv __pycache__ dist node_modules",
+    )
+    search_parser.add_argument(
+        "--no-exclude",
+        action="store_true",
+        help="Disable all default directory exclusions",
+    )
+    search_parser.add_argument(
         "--output",
         "-o",
-        help="Output format (text, json, html)",
-        choices=["text", "json", "html"],
-        default="text",
+        help="Output format (yaml, json)",
+        choices=["yaml", "json"],
+        default="yaml",
     )
     
     # Interactive command

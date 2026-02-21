@@ -2,7 +2,7 @@
 import os
 from pathlib import Path
 from datetime import datetime
-from typing import List, Optional
+from typing import Generator, List, Optional
 
 try:
     import magic  # type: ignore
@@ -24,8 +24,13 @@ class SimpleSearchEngine(SearchEngine):
         self._fast_searcher = FastContentSearcher()
     
     def search(self, query: SearchQuery, search_paths: List[str]) -> List[SearchResult]:
-        """Search for files matching the query."""
-        results = []
+        """Search for files matching the query. Returns full list."""
+        return list(self.search_iter(query, search_paths))
+
+    def search_iter(self, query: SearchQuery, search_paths: List[str]) -> Generator[SearchResult, None, None]:
+        """Yield matching SearchResult objects one at a time (supports Ctrl+C)."""
+        exclude = set(getattr(query, 'exclude_dirs', []))
+        count = 0
         for path in search_paths:
             if not os.path.exists(path):
                 continue
@@ -35,9 +40,15 @@ class SimpleSearchEngine(SearchEngine):
             if os.path.isfile(path):
                 result = self._process_file(path, query)
                 if result and self._matches_query(result, query):
-                    results.append(result)
+                    yield result
+                    count += 1
+                    if count >= query.max_results:
+                        return
             else:
                 for root, dirs, files in os.walk(path):
+                    # Prune excluded directories in-place
+                    dirs[:] = [d for d in dirs if d not in exclude]
+
                     # Check depth if max_depth is specified
                     abs_root = os.path.abspath(root)
                     rel_root = os.path.relpath(abs_root, abs_search_path)
@@ -48,8 +59,6 @@ class SimpleSearchEngine(SearchEngine):
                         depth = len([p for p in rel_root.split(os.sep) if p and p != '.'])
                         
                     if query.max_depth is not None:
-                        # If current directory is at or deeper than max_depth, 
-                        # clear dirs so os.walk doesn't descend further
                         if depth >= query.max_depth:
                             dirs[:] = []
                             if depth > query.max_depth:
@@ -59,10 +68,10 @@ class SimpleSearchEngine(SearchEngine):
                         file_path = os.path.join(root, file)
                         result = self._process_file(file_path, query)
                         if result and self._matches_query(result, query):
-                            results.append(result)
-                            if len(results) >= query.max_results:
-                                return results
-        return results
+                            yield result
+                            count += 1
+                            if count >= query.max_results:
+                                return
     
     def _process_file(
         self, 

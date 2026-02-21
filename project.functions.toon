@@ -1,0 +1,143 @@
+project: qry
+generated: "2026-02-21T18:35:48.484421"
+modules[23]{path,lang,items}:
+  qry.py,python,0
+  engines/__init__.py,python,3
+  tests/test_qry.py,python,2
+  api/routes.py,python,4
+  api/app.py,python,1
+  qry/__init__.py,python,0
+  qry/__main__.py,python,0
+  qry/engines/base.py,python,3
+  qry/engines/__init__.py,python,3
+  qry/engines/fast_search.py,python,14
+  qry/engines/simple.py,python,7
+  qry/core/__init__.py,python,0
+  qry/core/models.py,python,4
+  qry/web/__init__.py,python,0
+  qry/web/renderer.py,python,6
+  qry/cli/commands.py,python,8
+  qry/cli/interactive.py,python,17
+  qry/cli/__init__.py,python,0
+  qry/cli/batch.py,python,7
+  qry/utils/__init__.py,python,0
+  qry/api/routes.py,python,4
+  qry/api/app.py,python,2
+  qry/api/__init__.py,python,0
+
+function_details:
+  engines/__init__.py:
+    functions[3]{name,kind,sig,loc,async,lines,cc,does}:
+      get_available_engines,function,"() -> Dict[str, Type[SearchEngine]]",14-20,false,7,3,Get a dictionary of available search engines.
+      get_engine,function,"(name:str) -> Optional[SearchEngine]",23-37,false,15,2,Get a search engine by name.
+      get_default_engine,function,() -> SearchEngine,40-49,false,10,2,Get the default search engine.
+  tests/test_qry.py:
+    functions[2]{name,kind,sig,loc,async,lines,cc,does}:
+      test_placeholder,function,(),4-6,false,3,1,Placeholder test to verify the test setup works.
+      test_import,function,(),9-11,false,3,1,Verify the main package can be imported.
+  api/routes.py:
+    functions[4]{name,kind,sig,loc,async,lines,cc,does}:
+      search,function,"(q:str=Query(..., description='Search query'), types:Optional[str]=Query(None, description='Comma-separated list of file types to filter by'), limit:int=Query(100, description='Maximum number of results to return'), last_days:Optional[int]=Query(None, description='Filter by last N days'), engine:str=Query('default', description='Search engine to use')) -> List[dict]",14-49,true,36,7,Search for files.
+      search_html,function,"(q:str=Query(..., description='Search query'), types:Optional[str]=Query(None, description='Comma-separated list of file types to filter by'), limit:int=Query(100, description='Maximum number of results to return'), last_days:Optional[int]=Query(None, description='Filter by last N days'), engine:str=Query('default', description='Search engine to use')) -> str",53-76,true,24,3,Search for files and return results as HTML.
+      list_engines,function,"() -> List[dict]",80-90,true,11,3,List available search engines.
+      health_check,function,() -> dict,94-96,true,3,1,Health check endpoint.
+  api/app.py:
+    functions[1]{name,kind,sig,loc,async,lines,cc,does}:
+      create_app,function,() -> FastAPI,17-61,false,45,1,Create and configure the FastAPI application.
+  qry/engines/base.py:
+    functions[3]{name,kind,sig,loc,async,lines,cc,does}:
+      SearchEngine.search,method,"(query:SearchQuery, search_paths:List[str]) -> List[SearchResult]",13-23,false,11,1,Search for files matching the query.
+      SearchEngine.get_name,method,() -> str,26-28,false,3,1,Get the name of the search engine.
+      SearchEngine.is_available,method,() -> bool,31-33,false,3,1,"Check if the search engine is available (dependencies installed, etc.)."
+  qry/engines/__init__.py:
+    functions[3]{name,kind,sig,loc,async,lines,cc,does}:
+      get_available_engines,function,"() -> Dict[str, Type[SearchEngine]]",14-20,false,7,3,Get a dictionary of available search engines.
+      get_engine,function,"(name:Optional[str]=None) -> Optional[SearchEngine]",23-43,false,21,5,Get a search engine by name.
+      get_default_engine,function,() -> SearchEngine,46-53,false,8,2,Get the default search engine.
+  qry/engines/fast_search.py:
+    functions[14]{name,kind,sig,loc,async,lines,cc,does}:
+      _build_bmh_table,function,"(pattern:bytes) -> Dict[int, int]",23-28,false,6,3,creates bmh table
+      bmh_search,function,"(text:bytes, pattern:bytes) -> List[int]",31-48,false,18,7,Boyer-Moore-Horspool – O(n/m) average.
+      _build_kmp_table,function,"(pattern:bytes) -> List[int]",51-61,false,11,5,creates kmp table
+      kmp_search,function,"(text:bytes, pattern:bytes) -> List[int]",64-80,false,17,7,Knuth-Morris-Pratt – O(n+m).
+      mmap_regex_search,function,"(file_path:str, pattern:str) -> List[int]",129-140,false,12,3,Memory-mapped file search using compiled regex – avoids full read.
+      str_find_search,function,"(text:bytes, pattern:bytes) -> List[int]",143-153,false,11,3,"Baseline: built-in str.find loop (CPython C implementation)."
+      run_benchmark,function,"(search_dir:str, pattern:str, max_files:int=200) -> None",218-288,false,71,13,Compare all algorithms on real files in search_dir.
+      _benchmark_whoosh,function,"(files:List[str], pattern:str) -> None",291-317,false,27,3,benchmark whoosh
+      AhoCorasick.__init__,method,"(patterns:List[bytes])",86-90,false,5,1,creates
+      AhoCorasick._build,method,"(patterns:List[bytes])",92-115,false,24,9,creates
+      AhoCorasick.search,method,"(text:bytes) -> List[Tuple[int, bytes]]",117-126,false,10,5,filters
+      FastContentSearcher.search_file,method,"(file_path:str, patterns:List[str], case_sensitive:bool=False) -> bool",169-188,false,20,5,Return True if any pattern is found in the file.
+      FastContentSearcher._str_find_file,method,"(file_path:str, pattern:str, case_sensitive:bool) -> bool",190-199,false,10,3,str find file
+      FastContentSearcher._aho_corasick_file,method,"(file_path:str, patterns:List[str], case_sensitive:bool) -> bool",201-211,false,11,5,aho corasick file
+  qry/engines/simple.py:
+    functions[7]{name,kind,sig,loc,async,lines,cc,does}:
+      SimpleSearchEngine.__init__,method,"(max_workers:int=None)",20-24,false,5,3,Initialize the simple search engine.
+      SimpleSearchEngine.search,method,"(query:SearchQuery, search_paths:List[str]) -> List[SearchResult]",26-65,false,40,18,Search for files matching the query.
+      SimpleSearchEngine._process_file,method,"(file_path:str, query:SearchQuery) -> Optional[SearchResult]",67-97,false,31,3,Process a single file and return a SearchResult if it matches the query.
+      SimpleSearchEngine._matches_query,method,"(result:SearchResult, query:SearchQuery) -> bool",99-133,false,35,15,Check if a result matches the query.
+      SimpleSearchEngine._search_in_content,method,"(file_path:str, query_lower:str) -> bool",135-141,false,7,4,Search for query text in file content using FastContentSearcher.
+      SimpleSearchEngine.get_name,method,() -> str,143-145,false,3,1,Get the name of the search engine.
+      SimpleSearchEngine.is_available,method,() -> bool,147-149,false,3,1,Check if the search engine is available.
+  qry/core/models.py:
+    functions[4]{name,kind,sig,loc,async,lines,cc,does}:
+      SearchResult.modified,method,() -> datetime,21-23,false,3,1,Return modification timestamp (compatibility helper).
+      SearchResult.to_dict,method,"() -> Dict[str, Any]",25-37,false,13,1,Serialize result to a JSON-friendly dictionary.
+      SearchResult.dict,method,"() -> Dict[str, Any]",39-41,false,3,1,Compatibility alias for code expecting a pydantic-style API.
+      SearchResult._serialize_value,method,"(value:Any) -> Any",44-51,false,8,6,formats value
+  qry/web/renderer.py:
+    functions[6]{name,kind,sig,loc,async,lines,cc,does}:
+      HTMLRenderer.__init__,method,"(template_dir:str=None)",12-20,false,9,2,Initialize the HTML renderer.
+      HTMLRenderer.render_search_results,method,"(results:List[SearchResult], query:SearchQuery, title:str='Search Results') -> str",22-56,false,35,2,Render search results as HTML.
+      HTMLRenderer._render_result_item,method,"(result:SearchResult) -> str",58-84,false,27,1,Render a single search result item.
+      HTMLRenderer._render_metadata_preview,method,"(metadata:Dict[str,Any]) -> str",86-107,false,22,6,Render a preview of file metadata.
+      HTMLRenderer._load_template,method,"(template_name:str) -> str",109-143,false,35,3,Load an HTML template.
+      HTMLRenderer._format_file_size,method,"(size_bytes:int) -> str",146-152,false,7,3,Format file size in a human-readable format.
+  qry/cli/commands.py:
+    functions[8]{name,kind,sig,loc,async,lines,cc,does}:
+      create_parser,function,() -> argparse.ArgumentParser,141-262,false,122,1,Create the argument parser for the CLI.
+      main,function,"(args:Optional[List[str]]=None) -> int",265-317,false,53,17,Main entry point for the CLI.
+      CLICommands.__init__,method,(engine=None) -> None,20-27,false,8,2,Initialize the CLI commands handler.
+      CLICommands.search_command,method,"(args:Any) -> int",29-58,false,30,5,Handle the search command.
+      CLICommands._build_search_query,method,"(args:Any) -> SearchQuery",60-92,false,33,7,Build a SearchQuery from command-line arguments.
+      CLICommands.version_command,method,"(args:Any) -> int",94-105,false,12,1,Handle the version command.
+      CLICommands.interactive_command,method,"(args:Any) -> int",107-116,false,10,1,Start interactive mode.
+      CLICommands.batch_command,method,"(args:Any) -> int",118-138,false,21,2,Process search queries in batch mode.
+  qry/cli/interactive.py:
+    functions[17]{name,kind,sig,loc,async,lines,cc,does}:
+      run_interactive,function,(engine=None),360-370,false,11,3,Run the interactive command-line interface.
+      InteractiveCLI.__init__,method,(engine=None),27-52,false,26,2,Initialize the interactive CLI.
+      InteractiveCLI._create_session,method,(),54-70,false,17,1,Create a prompt session with history and completion.
+      InteractiveCLI.cmdloop,method,(intro=None),72-100,false,29,7,Override cmdloop to use prompt_toolkit.
+      InteractiveCLI.emptyline,method,(),102-104,false,3,1,Do nothing on empty input.
+      InteractiveCLI.default,method,(line),106-113,false,8,2,Handle unknown commands as search queries.
+      InteractiveCLI.do_search,method,(arg),115-150,false,36,2,Search for files.
+      InteractiveCLI._parse_search_args,method,"(arg_str:str) -> Dict[str, Any]",152-213,false,62,15,Parse search command arguments.
+      InteractiveCLI._display_results,method,"(results:List[Any], output_format:str='text')",215-236,false,22,9,Display search results in the specified format.
+      InteractiveCLI.do_set,method,(arg),238-285,false,48,11,Set configuration options.
+      InteractiveCLI.do_engine,method,(arg),287-295,false,9,4,List available search engines or set the current engine.
+      InteractiveCLI.do_cd,method,(arg),297-312,false,16,4,Change the current working directory.
+      InteractiveCLI.do_pwd,method,(arg),314-316,false,3,1,Print the current working directory.
+      InteractiveCLI.do_ls,method,(arg),318-329,false,12,5,List directory contents.
+      InteractiveCLI.do_clear,method,(arg),331-333,false,3,2,Clear the screen.
+      InteractiveCLI.do_exit,method,(arg),335-338,false,4,1,Exit the interactive shell.
+      InteractiveCLI.help_search,method,(),340-357,false,18,1,Show help for the search command.
+  qry/cli/batch.py:
+    functions[7]{name,kind,sig,loc,async,lines,cc,does}:
+      run_batch,function,"(input_file:str, output_file:Optional[str]=None, output_format:str='text', engine_name:Optional[str]=None, max_workers:int=4) -> int",206-250,false,45,4,Run batch processing.
+      BatchProcessor.__init__,method,"(engine=None, output_format:str='text', output_file:Optional[str]=None, max_workers:int=4, search_paths:Optional[List[str]]=None) -> None",22-44,false,23,3,Initialize the batch processor.
+      BatchProcessor.process_file,method,"(input_file:str) -> int",46-58,false,13,3,Process queries from a file.
+      BatchProcessor.process_queries,method,"(queries:List[str]) -> int",60-123,false,64,11,Process a list of search queries.
+      BatchProcessor._process_single_query,method,"(query:str) -> List[SearchResult]",125-135,false,11,1,Process a single search query.
+      BatchProcessor._write_results,method,"(query:str, results:List[SearchResult], output_file:Optional[TextIO], query_idx:int, total_queries:int) -> None",137-188,false,52,9,Write results in the specified format.
+      BatchProcessor._print_results,method,"(query:str, results:List[SearchResult])",190-203,false,14,6,Print results to console.
+  qry/api/routes.py:
+    functions[4]{name,kind,sig,loc,async,lines,cc,does}:
+      search,function,"(q:str=Query(..., description='Search query'), types:Optional[str]=Query(None, description='Comma-separated list of file types to filter by'), limit:int=Query(100, ge=1, le=10000, description='Maximum number of results'), last_days:Optional[int]=Query(None, ge=1, description='Filter by last N days'), engine:str=Query('default', description='Search engine to use')) -> List[dict]",19-53,true,35,6,Search for files and return JSON-serializable results.
+      search_html,function,"(q:str=Query(..., description='Search query'), types:Optional[str]=Query(None, description='Comma-separated list of file types to filter by'), limit:int=Query(100, ge=1, le=10000, description='Maximum number of results'), last_days:Optional[int]=Query(None, ge=1, description='Filter by last N days'), engine:str=Query('default', description='Search engine to use')) -> str",57-79,true,23,4,Search for files and return rendered HTML.
+      list_engines,function,"() -> List[dict]",83-88,true,6,3,List available search engines.
+      health_check,function,() -> dict,92-94,true,3,1,Health check endpoint.
+  qry/api/app.py:
+    functions[2]{name,kind,sig,loc,async,lines,cc,does}:
+      create_app,function,() -> FastAPI,21-60,false,40,2,Create and configure the FastAPI application.
+      main,function,() -> int,66-77,false,12,1,Run API server from the console script entrypoint.
