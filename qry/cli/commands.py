@@ -70,12 +70,8 @@ class CLICommands:
             if query.max_depth is not None:
                 print(f"Limit: {query.max_depth}")
             if query.query_text:
-                if query.search_content:
-                    search_type = "file content"
-                elif query.file_types:
-                    search_type = "filename pattern"
-                else:
-                    search_type = "filename"
+                mode_labels = {"filename": "filename", "content": "file content", "both": "filename + content"}
+                search_type = mode_labels.get(query.search_mode, query.search_mode)
                 print(f"Description: Searching for '{query.query_text}' ({search_type}) across directory levels")
             else:
                 print("Description: Searching all files across directory levels")
@@ -108,6 +104,13 @@ class CLICommands:
         
         file_types = args.type.split(',') if args.type else []
         
+        if getattr(args, 'content', False):
+            search_mode = "content"
+        elif getattr(args, 'filename', False):
+            search_mode = "filename"
+        else:
+            search_mode = "filename"
+
         return SearchQuery(
             query_text=' '.join(args.query) if args.query else "",
             file_types=file_types,
@@ -115,7 +118,7 @@ class CLICommands:
             max_results=args.limit,
             include_previews=not args.no_preview,
             max_depth=args.depth,
-            search_content=getattr(args, 'content', False)
+            search_mode=search_mode
         )
     
     def version_command(self, args: argparse.Namespace) -> int:
@@ -210,10 +213,16 @@ def create_parser() -> argparse.ArgumentParser:
         help="Filter by last N days",
     )
     search_parser.add_argument(
+        "--filename",
+        "-f",
+        action="store_true",
+        help="Search by filename (default behaviour)",
+    )
+    search_parser.add_argument(
         "--content",
         "-c",
         action="store_true",
-        help="Search in file contents (not just filenames)",
+        help="Search in file contents",
     )
     search_parser.add_argument(
         "--limit",
@@ -290,9 +299,9 @@ def main(args: Optional[List[str]] = None) -> int:
     if args is None:
         args = sys.argv[1:]
         
-    # If the first argument is not a known command and doesn't start with a flag, assume it's a search query
+    # If the first argument is not a known command, assume it's a search query or search flags
     known_commands = {"search", "interactive", "i", "shell", "batch", "version", "help"}
-    if args and args[0] not in known_commands and not args[0].startswith('-'):
+    if args and args[0] not in known_commands:
         args = ["search"] + args
         
     parsed_args = parser.parse_args(args)

@@ -43,7 +43,7 @@ poetry run qry version
 ## CLI usage
 
 ```bash
-qry search [query ...] [--type EXT1,EXT2] [--scope PATH] [--depth N]
+qry search [query ...] [-f] [-c] [--type EXT1,EXT2] [--scope PATH] [--depth N]
            [--last-days N] [--limit N] [--output text|json|html]
 
 qry interactive
@@ -51,9 +51,26 @@ qry batch <input_file> [--output-file FILE] [--format text|json|csv] [--workers 
 qry version
 ```
 
+Search mode flags:
+
+| Flag | Long form | Searches |
+|------|-----------|----------|
+| (none) | | filename (default) |
+| `-f` | `--filename` | filename only |
+| `-c` | `--content` | file contents |
+
 Examples:
 
 ```bash
+# search by filename (default)
+poetry run qry "invoice"
+poetry run qry "invoice" -f
+
+# search inside file contents
+poetry run qry "def search" -c
+poetry run qry "TODO OR FIXME" -c --type py --scope ./src
+
+# combine with scope/depth/type
 poetry run qry "invoice OR faktura" --scope /data/docs --depth 3
 poetry run qry search "report" --type pdf,docx --last-days 7
 poetry run qry batch queries.txt --format json --output-file results.json

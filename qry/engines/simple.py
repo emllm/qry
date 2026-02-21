@@ -109,16 +109,15 @@ class SimpleSearchEngine(SearchEngine):
             else:
                 filename_match = query_lower in result.file_path.lower()
             
-            # If searching content and no filename match, try file content
-            if query.search_content:
-                if not filename_match:
-                    text_match = self._search_in_content(result.file_path, query_lower)
-                else:
-                    text_match = True
-            else:
-                text_match = filename_match
+            mode = getattr(query, 'search_mode', 'filename')
+            if mode == "content":
+                match = self._search_in_content(result.file_path, query_lower)
+            elif mode == "both":
+                match = filename_match or self._search_in_content(result.file_path, query_lower)
+            else:  # filename (default)
+                match = filename_match
 
-            if not text_match:
+            if not match:
                 return False
             
         # File type filtering

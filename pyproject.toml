@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "qry"
-version = "0.2.3"
+version = "0.2.4"
 description = "Ultra-fast file search and processing tool"
 authors = [
     "Tom Sapletta <info@softreck.dev>",
@@ -26,6 +26,7 @@ uvicorn = {extras = ["standard"], version = "^0.24.0"}
 jinja2 = "^3.1.2"
 pydantic = "^2.4.2"
 prompt-toolkit = "^3.0.51"
+whoosh = "^2.7.4"
 
 [tool.poetry.scripts]
 qry = "qry.cli.commands:main"
