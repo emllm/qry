@@ -1,10 +1,13 @@
 [tool.poetry]
 name = "qry"
-version = "0.2.1"
+version = "0.2.2"
 description = "Ultra-fast file search and processing tool"
-authors = ["Tom Sapletta <info@softreck.dev>"]
+authors = [
+    "Tom Sapletta <info@softreck.dev>",
+    "Tom Sapletta <tom@sapletta.com>",
+]
 readme = "README.md"
-license = "MIT"
+license = "Apache-2.0"
 packages = [{include = "qry"}]
 
 [tool.poetry.dependencies]
