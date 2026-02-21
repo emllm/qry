@@ -18,7 +18,7 @@ qry "faktura" --scope /home/user/dokumenty --depth 2
 qry "" --type pdf --scope /data/docs
 
 # Znajdź pliki README
-qry "README" --scope . --depth 1
+qry "README" --path . --depth 1
 ```
 
 ## 2. Wyszukiwanie w treści plików
@@ -28,13 +28,13 @@ qry "README" --scope . --depth 1
 qry "faktura" -c
 
 # Szukaj w konkretnych typach plików
-qry "keyword" -c --type py,txt --scope ./src
+qry "keyword" -c --type py,txt --path ./src
 
 # Wyszukiwanie OR — znajdź pliki zawierające jedno z kilku słów
-qry "TODO OR FIXME" -c --type py --scope ./src
+qry "TODO OR FIXME" -c --type py --path ./src
 
 # Podgląd — pokaż dopasowaną linię z kontekstem
-qry "def search" -c -p --scope ./qry --depth 3
+qry "def search" -c -P --path ./qry --depth 3
 ```
 
 ## 3. Wyszukiwanie z wyrażeniami regularnymi (regex)
@@ -44,13 +44,13 @@ qry "def search" -c -p --scope ./qry --depth 3
 qry "\.py$" -r --sort name
 
 # Znajdź definicje funkcji w Pythonie
-qry "def \w+\(" -c -r --type py --scope ./src
+qry "def \w+\(" -c -r --type py --path ./src
 
 # Znajdź importy na początku linii
 qry "^import " -c -r --type py
 
 # Regex + podgląd kontekstu
-qry "class \w+Engine" -c -r -p --type py --scope ./qry
+qry "class \w+Engine" -c -r -P --type py --path ./qry
 ```
 
 ## 4. Filtrowanie po rozmiarze pliku
@@ -63,10 +63,10 @@ qry "" --min-size 1MB --sort size
 qry "" --min-size 10k --max-size 500k
 
 # Duże pliki logów
-qry "" --type log --min-size 10MB --scope /var/log
+qry "" --type log --min-size 10MB --path /var/log
 
 # Małe pliki Python (< 1 KB)
-qry "" --type py --max-size 1k --scope ./qry
+qry "" --type py --max-size 1k --path ./qry
 ```
 
 ## 5. Filtrowanie po dacie
@@ -76,23 +76,23 @@ qry "" --type py --max-size 1k --scope ./qry
 qry "" --last-days 7
 
 # Raporty PDF z ostatniego miesiąca
-qry "report" --type pdf --last-days 30 --scope /data/docs
+qry "report" --type pdf --last-days 30 --path /data/docs
 ```
 
 ## 6. Sortowanie wyników
 
 ```bash
 # Sortuj po nazwie (alfabetycznie)
-qry "" --sort name --scope ./qry
+qry "" --sort name --path ./qry
 
 # Sortuj po rozmiarze (najmniejsze najpierw)
-qry "" --sort size --scope .
+qry "" --sort size --path .
 
 # Sortuj po dacie modyfikacji
 qry "" --sort date --last-days 30
 
 # Największe pliki Pythona
-qry "" --type py --sort size --scope ./qry
+qry "" --type py --sort size --path ./qry
 ```
 
 ## 7. Wykluczanie katalogów
@@ -182,8 +182,8 @@ py_files = qry.search(r"test_.*\.py$", scope=".", regex=True, sort_by="name")
 big = qry.search("", scope=".", min_size=1024*1024, sort_by="size")
 
 # Streaming — pamięciowo efektywny, obsługuje Ctrl+C
-for path in qry.search_iter("faktura", scope="/data", mode="content"):
-    print(path)
+for file_path in qry.search_iter("faktura", scope="/data", mode="content"):
+    print(file_path)
 
 # Własne wykluczenia
 files = qry.search("config", exclude_dirs=[".git", "build", ".venv"])
@@ -196,10 +196,10 @@ docs = qry.search("", scope="/data", file_types=["pdf", "docx", "md"])
 
 ```bash
 # Pliki Pythona > 5 KB, posortowane po rozmiarze, z podglądem treści
-qry "class" -c -p --type py --min-size 5k --sort size --scope ./qry
+qry "class" -c -P --type py --min-size 5k --sort size --path ./qry
 
 # Regex: znajdź pliki testowe, posortowane po nazwie
-qry "test_.*\.py$" -r --sort name --scope .
+qry "test_.*\.py$" -r --sort name --path .
 
 # JSON output: pliki zmienione w ostatnim tygodniu, bez .git i node_modules
 qry "" --last-days 7 --sort date -o json
@@ -224,9 +224,9 @@ qry version
 | `--content` | `-c` | Szukaj w treści plików |
 | `--filename` | `-f` | Szukaj po nazwie (domyślne) |
 | `--regex` | `-r` | Traktuj zapytanie jako regex |
-| `--preview` | `-p` | Pokaż dopasowaną linię (z `-c`) |
+| `--preview` | `-P` | Pokaż dopasowaną linię (z `-c`) |
 | `--type EXT` | `-t` | Filtruj po rozszerzeniu |
-| `--scope PATH` | `-s` | Katalog do przeszukania |
+| `--path PATH` / `--scope PATH` | `-p` / `-s` | Katalog do przeszukania |
 | `--depth N` | `-d` | Maks. głębokość katalogów |
 | `--limit N` | `-l` | Maks. liczba wyników (0 = bez limitu) |
 | `--min-size SIZE` | | Min. rozmiar pliku (1k, 10MB, 1G) |

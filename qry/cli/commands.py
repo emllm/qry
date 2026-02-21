@@ -268,6 +268,8 @@ def create_parser() -> argparse.ArgumentParser:
     search_parser.add_argument(
         "--scope",
         "-s",
+        "--path",
+        "-p",
         default=".",
         help="Search scope directory (default: current directory)",
     )
@@ -329,7 +331,7 @@ def create_parser() -> argparse.ArgumentParser:
     )
     search_parser.add_argument(
         "--preview",
-        "-p",
+        "-P",
         action="store_true",
         help="Show content snippet with line number for -c matches",
     )

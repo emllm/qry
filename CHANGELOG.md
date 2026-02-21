@@ -29,7 +29,7 @@ feat(docs): deep code analysis engine with 4 supporting modules
 - **Regex search** — `--regex` / `-r` flag treats query as a regular expression (filenames and content)
 - **Size filtering** — `--min-size SIZE` / `--max-size SIZE` with human-readable units (1k, 10MB, 1G)
 - **Sort results** — `--sort name|size|date` for ordered output
-- **Content preview** — `--preview` / `-p` shows matching line with context for content search (`-c`)
+- **Content preview** — `--preview` / `-P` shows matching line with context for content search (`-c`)
 - `scope` field in output shows glob depth pattern (`/path/*/*/*`)
 - `depth` field shows actual result depth range
 - `excluded` field shows active exclusion list

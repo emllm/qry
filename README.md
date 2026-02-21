@@ -42,10 +42,10 @@ pip install -r requirements.txt
 poetry run qry "invoice"
 
 # search file contents with preview snippet
-poetry run qry "def search" -c -p --scope ./qry
+poetry run qry "def search" -c -P --path ./qry
 
 # regex search, sorted by name
-poetry run qry "\.py$" -r --sort name --scope .
+poetry run qry "\.py$" -r --sort name --path .
 
 # pipe-friendly output for shell pipelines
 poetry run qry "TODO" -c -o paths | xargs grep -n "FIXME"
@@ -57,7 +57,7 @@ poetry run qry version
 ## CLI usage
 
 ```bash
-qry search [query ...] [-f] [-c] [-r] [-p] [--type EXT1,EXT2] [--scope PATH]
+qry search [query ...] [-f] [-c] [-r] [-P] [--type EXT1,EXT2] [--scope PATH | --path PATH]
            [--depth N] [--last-days N] [--limit N] [--min-size SIZE] [--max-size SIZE]
            [--sort name|size|date] [--exclude DIR] [--no-exclude]
            [--output yaml|json|paths]
@@ -96,7 +96,7 @@ qry version
 | `-o yaml` | YAML output (default) |
 | `-o json` | JSON output |
 | `-o paths` | One path per line — pipe-friendly |
-| `-p` | `--preview` — show matching line with context (with `-c`) |
+| `-P` | `--preview` — show matching line with context (with `-c`) |
 | `--sort` | Sort results by `name`, `size`, or `date` |
 
 Default excluded directories: `.git` `.venv` `__pycache__` `dist` `node_modules` `.tox` `.mypy_cache`
@@ -109,13 +109,13 @@ poetry run qry "invoice"
 
 # search inside file contents — press Ctrl+C to stop early
 poetry run qry "def search" -c
-poetry run qry "TODO OR FIXME" -c --type py --scope ./src
+poetry run qry "TODO OR FIXME" -c --type py --path ./src
 
 # regex search for Python files
 poetry run qry "\.py$" -r --sort name -s qry/
 
 # content search with preview snippet
-poetry run qry "search" -c -p --sort name -s qry/ -d 2
+poetry run qry "search" -c -P --sort name -s qry/ -d 2
 
 # filter by file size
 poetry run qry "" --min-size 10k --max-size 1MB --sort size
