@@ -3,8 +3,9 @@ import os
 import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
+from enum import IntEnum
 from pathlib import Path
-from typing import Dict, Generator, List, Optional, Tuple
+from typing import Callable, Dict, Generator, List, Optional, Tuple
 from functools import lru_cache
 
 try:
@@ -15,6 +16,134 @@ except ImportError:  # pragma: no cover - depends on optional runtime dependency
 from ..core.models import SearchResult, SearchQuery
 from .base import SearchEngine
 from .fast_search import FastContentSearcher
+
+
+# Priority levels for directory search ordering
+class Priority(IntEnum):
+    """Priority levels for directory search ordering.
+    
+    Higher priority directories are searched first, allowing
+    developers to find relevant results faster.
+    """
+    # High priority - source code and important config
+    SOURCE = 100      # src/, source/, lib/
+    PROJECT = 90      # project-specific: tests/, docs/, scripts/
+    CONFIG = 80       # config files: config/, .*/, etc.
+    
+    # Medium priority - common development directories
+    MAIN = 70         # main/, app/, core/
+    MODULES = 60      # modules/, components/, packages/
+    UTILS = 50        # utils/, helpers/, tools/
+    
+    # Low priority - build and output directories
+    BUILD = 40        # build/, dist/, out/, target/
+    CACHE = 30        # cache/, .cache/, __pycache__/, node_modules/
+    TEMP = 20         # temp/, tmp/, .tmp/
+    GENERATED = 10    # generated/, compiled/, bin/
+    
+    # Exclude - directories to skip
+    EXCLUDED = 0      # .git/, .venv/, etc.
+
+
+# Priority patterns - regex patterns mapped to priorities
+PRIORITY_PATTERNS = [
+    # High priority - source code
+    (r'(^|/)src($|/)', Priority.SOURCE),
+    (r'(^|/)source($|/)', Priority.SOURCE),
+    (r'(^|/)lib($|/)', Priority.SOURCE),
+    (r'(^|/)code($|/)', Priority.SOURCE),
+    
+    # Project-specific high priority
+    (r'(^|/)tests?($|/)', Priority.PROJECT),
+    (r'(^|/)test($|/)', Priority.PROJECT),
+    (r'(^|/)docs?($|/)', Priority.PROJECT),
+    (r'(^|/)scripts($|/)', Priority.PROJECT),
+    (r'(^|/)examples?($|/)', Priority.PROJECT),
+    
+    # Config files
+    (r'(^|/)\.config($|/)', Priority.CONFIG),
+    (r'(^|/)config($|/)', Priority.CONFIG),
+    (r'(^|/)settings($|/)', Priority.CONFIG),
+    
+    # Medium priority - main app directories
+    (r'(^|/)main($|/)', Priority.MAIN),
+    (r'(^|/)app($|/)', Priority.MAIN),
+    (r'(^|/)core($|/)', Priority.MAIN),
+    (r'(^|/)server($|/)', Priority.MAIN),
+    (r'(^|/)client($|/)', Priority.MAIN),
+    
+    # Modules
+    (r'(^|/)modules?($|/)', Priority.MODULES),
+    (r'(^|/)components?($|/)', Priority.MODULES),
+    (r'(^|/)packages?($|/)', Priority.MODULES),
+    (r'(^|/)plugins?($|/)', Priority.MODULES),
+    (r'(^|/)extensions?($|/)', Priority.MODULES),
+    
+    # Utils
+    (r'(^|/)utils($|/)', Priority.UTILS),
+    (r'(^|/)helpers($|/)', Priority.UTILS),
+    (r'(^|/)tools($|/)', Priority.UTILS),
+    (r'(^|/)lib($|/)', Priority.UTILS),
+    
+    # Low priority - build directories
+    (r'(^|/)build($|/)', Priority.BUILD),
+    (r'(^|/)dist($|/)', Priority.BUILD),
+    (r'(^|/)out($|/)', Priority.BUILD),
+    (r'(^|/)target($|/)', Priority.BUILD),
+    (r'(^|/)release($|/)', Priority.BUILD),
+    (r'(^|/)debug($|/)', Priority.BUILD),
+    
+    # Cache directories (very low)
+    (r'(^|/)cache($|/)', Priority.CACHE),
+    (r'(^|/)__pycache__($|/)', Priority.CACHE),
+    (r'(^|/)node_modules($|/)', Priority.CACHE),
+    (r'(^|/).pytest_cache($|/)', Priority.CACHE),
+    (r'(^|/).tox($|/)', Priority.CACHE),
+    
+    # Temp directories
+    (r'(^|/)temp($|/)', Priority.TEMP),
+    (r'(^|/)tmp($|/)', Priority.TEMP),
+    (r'(^|/).tmp($|/)', Priority.TEMP),
+    
+    # Generated directories
+    (r'(^|/)generated($|/)', Priority.GENERATED),
+    (r'(^|/)compiled($|/)', Priority.GENERATED),
+    (r'(^|/)bin($|/)', Priority.GENERATED),
+    (r'(^|/)obj($|/)', Priority.GENERATED),
+    
+    # Excluded (lowest priority - searched last)
+    (r'(^|/).git($|/)', Priority.EXCLUDED),
+    (r'(^|/).svn($|/)', Priority.EXCLUDED),
+    (r'(^|/).hg($|/)', Priority.EXCLUDED),
+    (r'(^|/).venv($|/)', Priority.EXCLUDED),
+    (r'(^|/)venv($|/)', Priority.EXCLUDED),
+    (r'(^|/)env($|/)', Priority.EXCLUDED),
+    (r'(^|/).idea($|/)', Priority.EXCLUDED),
+    (r'(^|/).vscode($|/)', Priority.EXCLUDED),
+]
+
+
+# Compile priority patterns once
+_priority_rx = [(re.compile(p), pri) for p, pri in PRIORITY_PATTERNS]
+
+
+def _get_directory_priority(dir_path: str) -> Priority:
+    """Get priority for a directory based on its path.
+    
+    Args:
+        dir_path: The directory path to evaluate
+        
+    Returns:
+        Priority level (higher = searched first)
+    """
+    for rx, priority in _priority_rx:
+        if rx.search(dir_path):
+            return priority
+    return Priority.MAIN  # Default priority
+
+
+# Callback type for priority progress
+PriorityCallback = Optional[Callable[[str, int, int, List[str]], None]]
 
 
 # Cache for file stat results - avoids repeated filesystem calls
@@ -45,15 +174,26 @@ def _get_cached_regex(pattern: str, flags: int = re.IGNORECASE) -> re.Pattern:
 class SimpleSearchEngine(SearchEngine):
     """Simple file search engine using basic file system operations."""
     
-    def __init__(self, max_workers: int = None, use_cache: bool = True):
+    def __init__(
+        self, 
+        max_workers: int = None, 
+        use_cache: bool = True,
+        priority_mode: bool = False,
+        priority_callback: PriorityCallback = None
+    ):
         """Initialize the simple search engine.
         
         Args:
             max_workers: Maximum number of worker threads for parallel processing
             use_cache: Whether to use caching for file metadata
+            priority_mode: If True, search directories by priority (high to low)
+            priority_callback: Callback function(priority_name, current, total, results) 
+                            called when switching to new priority level
         """
         self.max_workers = max_workers or min(8, (os.cpu_count() or 4))
         self.use_cache = use_cache
+        self.priority_mode = priority_mode
+        self.priority_callback = priority_callback
         self.mime = magic.Magic(mime=True) if magic else None
         self._fast_searcher = FastContentSearcher()
         # Date range for early directory pruning
@@ -65,6 +205,11 @@ class SimpleSearchEngine(SearchEngine):
 
     def search_iter(self, query: SearchQuery, search_paths: List[str]) -> Generator[SearchResult, None, None]:
         """Yield matching SearchResult objects one at a time (supports Ctrl+C)."""
+        # Use priority-based search if enabled
+        if self.priority_mode:
+            yield from self._search_by_priority(query, search_paths)
+            return
+        
         exclude = set(getattr(query, 'exclude_dirs', []))
         count = 0
         
@@ -122,6 +267,111 @@ class SimpleSearchEngine(SearchEngine):
                             count += 1
                             if count >= query.max_results:
                                 return
+    
+    def _search_by_priority(
+        self, 
+        query: SearchQuery, 
+        search_paths: List[str]
+    ) -> Generator[SearchResult, None, None]:
+        """Search directories by priority - high priority first.
+        
+        This mode organizes directories by importance (source code first, 
+        cache/temp last) and yields results as each priority level completes.
+        
+        Args:
+            query: The search query
+            search_paths: List of paths to search
+            
+        Yields:
+            SearchResult objects sorted by directory priority
+        """
+        exclude = set(getattr(query, 'exclude_dirs', []))
+        
+        # Store date range for early directory pruning
+        self._date_range = getattr(query, 'date_range', None)
+        
+        # Collect all directories with their priorities
+        all_dirs_by_priority: Dict[Priority, List[Tuple[str, int]]] = {}
+        
+        for path in search_paths:
+            if not os.path.exists(path):
+                continue
+            
+            abs_search_path = os.path.abspath(path)
+            
+            if os.path.isfile(path):
+                result = self._process_file(path, query)
+                if result and self._matches_query(result, query):
+                    yield result
+                continue
+            
+            # Walk directory tree and collect all directories
+            for root, dirs, files in os.walk(path):
+                # Prune excluded directories
+                dirs[:] = [d for d in dirs if d not in exclude]
+                
+                # Early date-based directory pruning
+                if self._date_range:
+                    dirs[:] = self._filter_dirs_by_date(root, dirs, self._date_range)
+                
+                abs_root = os.path.abspath(root)
+                rel_root = os.path.relpath(abs_root, abs_search_path)
+                
+                if rel_root == '.':
+                    depth = 0
+                else:
+                    depth = len([p for p in rel_root.split(os.sep) if p and p != '.'])
+                
+                if query.max_depth is not None and depth > query.max_depth:
+                    continue
+                
+                # Get priority for this directory
+                priority = _get_directory_priority(rel_root)
+                
+                if priority not in all_dirs_by_priority:
+                    all_dirs_by_priority[priority] = []
+                all_dirs_by_priority[priority].append((root, depth))
+        
+        # Sort priorities from high to low
+        sorted_priorities = sorted(all_dirs_by_priority.keys(), reverse=True)
+        total_priorities = len(sorted_priorities)
+        
+        # Search each priority level
+        for idx, priority in enumerate(sorted_priorities):
+            priority_name = priority.name if hasattr(priority, 'name') else str(priority)
+            dirs = all_dirs_by_priority[priority]
+            
+            priority_results = []
+            
+            # Search all directories at this priority level
+            for dir_path, depth in dirs:
+                if query.max_depth is not None and depth > query.max_depth:
+                    continue
+                    
+                try:
+                    files = os.listdir(dir_path)
+                except OSError:
+                    continue
+                
+                for file in files:
+                    file_path = os.path.join(dir_path, file)
+                    result = self._process_file(file_path, query)
+                    if result and self._matches_query(result, query):
+                        priority_results.append(result)
+            
+            # Emit results from this priority level
+            for result in priority_results:
+                yield result
+            
+            # Call progress callback if provided
+            if self.priority_callback:
+                result_paths = [r.file_path for r in priority_results]
+                self.priority_callback(
+                    priority_name, 
+                    idx + 1, 
+                    total_priorities, 
+                    result_paths
+                )
     
     def _search_parallel(
         self, 

@@ -1,3 +1,14 @@
+## [0.2.9] - 2026-02-22
+
+### Summary
+
+feat(qry): deep code analysis engine with 3 supporting modules
+
+### Other
+
+- update qry/engines/simple.py
+
+
 ## [0.2.8] - 2026-02-22
 
 ### Summary
