@@ -179,7 +179,8 @@ class SimpleSearchEngine(SearchEngine):
         max_workers: int = None, 
         use_cache: bool = True,
         priority_mode: bool = False,
-        priority_callback: PriorityCallback = None
+        priority_callback: PriorityCallback = None,
+        incremental_timeout: float = 1.0
     ):
         """Initialize the simple search engine.
         
@@ -189,11 +190,13 @@ class SimpleSearchEngine(SearchEngine):
             priority_mode: If True, search directories by priority (high to low)
             priority_callback: Callback function(priority_name, current, total, results) 
                             called when switching to new priority level
+            incremental_timeout: Seconds to wait before showing progress (default: 1.0)
         """
         self.max_workers = max_workers or min(8, (os.cpu_count() or 4))
         self.use_cache = use_cache
         self.priority_mode = priority_mode
         self.priority_callback = priority_callback
+        self.incremental_timeout = incremental_timeout
         self.mime = magic.Magic(mime=True) if magic else None
         self._fast_searcher = FastContentSearcher()
         # Date range for early directory pruning
@@ -267,6 +270,192 @@ class SimpleSearchEngine(SearchEngine):
                             count += 1
                             if count >= query.max_results:
                                 return
+    
+    def _search_incremental(
+        self, 
+        query: SearchQuery, 
+        search_paths: List[str]
+    ) -> Generator[SearchResult, None, None]:
+        """Incremental search with timeout-based fallback.
+        
+        This mode:
+        1. Searches high-priority directories first
+        2. Shows results immediately as they're found
+        3. If no results after timeout, automatically expands search to lower priorities
+        4. This ensures user finds what they're looking for quickly
+        
+        Args:
+            query: The search query
+            search_paths: List of paths to search
+            
+        Yields:
+            SearchResult objects as they're found
+        """
+        import time
+        import threading
+        
+        exclude = set(getattr(query, 'exclude_dirs', []))
+        self._date_range = getattr(query, 'date_range', None)
+        
+        # Priority levels to search in order (high to low)
+        priority_order = [
+            Priority.SOURCE, Priority.PROJECT, Priority.CONFIG,
+            Priority.MAIN, Priority.MODULES, Priority.UTILS,
+            Priority.BUILD, Priority.CACHE, Priority.TEMP, 
+            Priority.GENERATED, Priority.EXCLUDED
+        ]
+        
+        # Track which priorities we've searched
+        searched_priorities: set = set()
+        found_results = False
+        start_time = time.time()
+        
+        # Use a queue to collect results from background search
+        import queue
+        results_queue: queue.Queue = queue.Queue()
+        stop_search = threading.Event()
+        
+        def background_search(priorities_to_search: List[Priority]):
+            """Background thread for searching given priorities."""
+            try:
+                for priority in priorities_to_search:
+                    if stop_search.is_set():
+                        break
+                        
+                    dirs_at_priority = self._collect_dirs_for_priority(
+                        search_paths, exclude, priority
+                    )
+                    
+                    for dir_path, depth in dirs_at_priority:
+                        if stop_search.is_set():
+                            break
+                        try:
+                            files = os.listdir(dir_path)
+                        except OSError:
+                            continue
+                        
+                        for file in files:
+                            if stop_search.is_set():
+                                break
+                            file_path = os.path.join(dir_path, file)
+                            result = self._process_file(file_path, query)
+                            if result and self._matches_query(result, query):
+                                results_queue.put(result)
+            finally:
+                results_queue.put(None)  # Sentinel to signal completion
+        
+        # Start with highest priority
+        current_priority_idx = 0
+        
+        while current_priority_idx < len(priority_order):
+            priorities_to_search = [priority_order[current_priority_idx]]
+            searched_priorities.add(priority_order[current_priority_idx])
+            
+            # Start background search
+            search_thread = threading.Thread(
+                target=background_search, 
+                args=(priorities_to_search,),
+                daemon=True
+            )
+            search_thread.start()
+            
+            # Collect results with timeout
+            timeout = self.incremental_timeout
+            results_in_batch = []
+            last_result_time = time.time()
+            
+            while True:
+                try:
+                    result = results_queue.get(timeout=0.1)
+                    if result is None:
+                        # Search completed for this priority
+                        break
+                    found_results = True
+                    last_result_time = time.time()
+                    results_in_batch.append(result)
+                    yield result
+                    
+                    # Check if we should wait longer for more results
+                    if time.time() - last_result_time > timeout:
+                        # No new results for timeout period
+                        break
+                        
+                except queue.Empty:
+                    # Timeout - check if we should expand search
+                    if not found_results and time.time() - start_time > timeout:
+                        # No results yet, expand to next priority
+                        break
+                    if time.time() - last_result_time > timeout:
+                        # Had results but no new ones, continue checking
+                        break
+            
+            # Stop current search and expand if no results
+            stop_search.set()
+            search_thread.join(timeout=0.5)
+            stop_search.clear()
+            
+            # If we found results, we can stop early (user found what they want)
+            if results_in_batch and self.priority_callback:
+                # User got results, but we can continue in background if they want more
+                pass
+            
+            # Move to next priority level
+            current_priority_idx += 1
+            
+            # Reset timeout for subsequent searches
+            start_time = time.time()
+            
+            # If user wants more results, continue to lower priorities
+        
+        # After all priorities, do one final sweep for any remaining results
+        while True:
+            try:
+                result = results_queue.get_nowait()
+                if result is None:
+                    break
+                yield result
+            except queue.Empty:
+                break
+    
+    def _collect_dirs_for_priority(
+        self,
+        search_paths: List[str],
+        exclude: set,
+        target_priority: Priority
+    ) -> List[Tuple[str, int]]:
+        """Collect all directories matching a specific priority."""
+        result_dirs = []
+        
+        for path in search_paths:
+            if not os.path.exists(path):
+                continue
+            
+            abs_search_path = os.path.abspath(path)
+            
+            if os.path.isfile(path):
+                continue
+            
+            for root, dirs, files in os.walk(path):
+                dirs[:] = [d for d in dirs if d not in exclude]
+                
+                if self._date_range:
+                    dirs[:] = self._filter_dirs_by_date(root, dirs, self._date_range)
+                
+                abs_root = os.path.abspath(root)
+                rel_root = os.path.relpath(abs_root, abs_search_path)
+                
+                depth = 0 if rel_root == '.' else len([p for p in rel_root.split(os.sep) if p and p != '.'])
+                
+                priority = _get_directory_priority(rel_root)
+                if priority == target_priority:
+                    result_dirs.append((root, depth))
+                
+                # Continue walking to find all matching dirs
+                if priority > target_priority:
+                    # Still descending, keep going
+                    pass
+                    
+        return result_dirs
     
     def _search_by_priority(
         self, 

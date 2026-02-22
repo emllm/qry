@@ -23,6 +23,8 @@ Ultra-fast file search and metadata extraction tool.
 - **Content preview** — `--preview` shows matching line with context for content search
 - **Date filtering** — `--last-days`, `--after-date`, `--before-date` for time-based searches
 - **Parallel search** — `-w/--workers` for multi-threaded directory processing
+- **Priority-based search** — searches important directories first (src/, tests/), then lower priority (cache/, .git/)
+- **Incremental results** — shows results as they're found with timeout-based priority fallback
 
 ## Installation
 
@@ -106,6 +108,26 @@ qry version
 | `--sort` | Sort results by `name`, `size`, or `date` |
 
 Default excluded directories: `.git` `.venv` `__pycache__` `dist` `node_modules` `.tox` `.mypy_cache`
+
+### Priority-based search
+
+When priority mode is enabled, directories are searched in order of importance:
+
+| Priority | Value | Directories |
+|----------|-------|-------------|
+| SOURCE | 100 | `src/`, `source/`, `lib/`, `code/` |
+| PROJECT | 90 | `tests/`, `test/`, `docs/`, `scripts/`, `examples/` |
+| CONFIG | 80 | `config/`, `.config/`, `settings/` |
+| MAIN | 70 | `main/`, `app/`, `core/`, `server/`, `client/` |
+| MODULES | 60 | `modules/`, `module/`, `components/`, `packages/`, `plugins/` |
+| UTILS | 50 | `utils/`, `helpers/`, `tools/` |
+| BUILD | 40 | `build/`, `dist/`, `out/`, `target/`, `release/` |
+| CACHE | 30 | `cache/`, `__pycache__/`, `node_modules/`, `.pytest_cache/` |
+| TEMP | 20 | `temp/`, `tmp/`, `.tmp/` |
+| GENERATED | 10 | `generated/`, `compiled/`, `bin/`, `obj/` |
+| EXCLUDED | 0 | `.git/`, `.svn/`, `.venv/`, `venv/`, `.idea/`, `.vscode/` |
+
+This ensures that important directories (source code) are searched first, while cache and temporary directories are searched last.
 
 ### Examples
 

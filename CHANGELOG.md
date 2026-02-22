@@ -1,8 +1,39 @@
+## [0.2.10] - 2026-02-22
+
+### Summary
+
+feat(docs): deep code analysis engine with 2 supporting modules
+
+### Docs
+
+- docs: update README
+
+### Other
+
+- update qry/engines/simple.py
+
+
 ## [0.2.9] - 2026-02-22
 
 ### Summary
 
-feat(qry): deep code analysis engine with 3 supporting modules
+feat(priority): Priority-based search with incremental results and timeout fallback
+
+### Priority-based Search
+- Added `Priority` enum with 11 levels (SOURCE=100 to EXCLUDED=0)
+- Directories categorized: src/ (100), tests/ (90), config/ (80), main/ (70), etc.
+- Searches important directories first, cache/temp directories last
+
+### Incremental Search
+- Added `incremental_timeout` parameter (default: 1.0 second)
+- Shows results immediately as they're found
+- If no results after timeout, automatically expands to lower priority directories
+- Ensures users find what they're looking for quickly
+
+### New Parameters
+- `priority_mode` - Enable priority-based search
+- `priority_callback` - Callback for priority level changes
+- `incremental_timeout` - Seconds to wait before expanding search
 
 ### Other
 
