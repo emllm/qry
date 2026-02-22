@@ -1,3 +1,14 @@
+## [0.2.11] - 2026-02-22
+
+### Summary
+
+feat(tests): test module improvements
+
+### Test
+
+- update tests/bench/test_performance.py
+
+
 ## [0.2.10] - 2026-02-22
 
 ### Summary
