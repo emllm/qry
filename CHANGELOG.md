@@ -1,3 +1,16 @@
+## [0.2.8] - 2026-02-22
+
+### Summary
+
+feat(build): deep code analysis engine with 5 supporting modules
+
+### Other
+
+- build: update Makefile
+- update qry/cli/commands.py
+- update qry/engines/simple.py
+
+
 ## [0.2.7] - 2026-02-21
 
 ### Summary

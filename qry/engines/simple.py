@@ -1,9 +1,11 @@
 """Simple file search engine implementation."""
 import os
 import re
-from pathlib import Path
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
-from typing import Generator, List, Optional
+from pathlib import Path
+from typing import Dict, Generator, List, Optional, Tuple
+from functools import lru_cache
 
 try:
     import magic  # type: ignore
@@ -15,14 +17,47 @@ from .base import SearchEngine
 from .fast_search import FastContentSearcher
 
 
+# Cache for file stat results - avoids repeated filesystem calls
+@lru_cache(maxsize=10000)
+def _cached_stat(file_path: str) -> Optional[os.stat_result]:
+    """Cached version of os.stat to avoid repeated filesystem calls."""
+    try:
+        return os.stat(file_path)
+    except OSError:
+        return None
+
+
+# Regex pattern cache
+_regex_cache: Dict[str, re.Pattern] = {}
+
+
+def _get_cached_regex(pattern: str, flags: int = re.IGNORECASE) -> re.Pattern:
+    """Get or create a cached compiled regex pattern."""
+    cache_key = (pattern, flags)
+    if cache_key not in _regex_cache:
+        try:
+            _regex_cache[cache_key] = re.compile(pattern, flags)
+        except re.error:
+            _regex_cache[cache_key] = re.compile(re.escape(pattern), flags)
+    return _regex_cache[cache_key]
+
+
 class SimpleSearchEngine(SearchEngine):
     """Simple file search engine using basic file system operations."""
     
-    def __init__(self, max_workers: int = None):
-        """Initialize the simple search engine."""
-        self.max_workers = max_workers or os.cpu_count()
+    def __init__(self, max_workers: int = None, use_cache: bool = True):
+        """Initialize the simple search engine.
+        
+        Args:
+            max_workers: Maximum number of worker threads for parallel processing
+            use_cache: Whether to use caching for file metadata
+        """
+        self.max_workers = max_workers or min(8, (os.cpu_count() or 4))
+        self.use_cache = use_cache
         self.mime = magic.Magic(mime=True) if magic else None
         self._fast_searcher = FastContentSearcher()
+        # Date range for early directory pruning
+        self._date_range: Optional[Tuple[datetime, datetime]] = None
     
     def search(self, query: SearchQuery, search_paths: List[str]) -> List[SearchResult]:
         """Search for files matching the query. Returns full list."""
@@ -32,6 +67,16 @@ class SimpleSearchEngine(SearchEngine):
         """Yield matching SearchResult objects one at a time (supports Ctrl+C)."""
         exclude = set(getattr(query, 'exclude_dirs', []))
         count = 0
+        
+        # Store date range for early directory pruning
+        self._date_range = getattr(query, 'date_range', None)
+        
+        # If we have date range and can use parallel processing, use it
+        if self._date_range and self.max_workers > 1:
+            # Use parallel processing for date-filtered searches
+            yield from self._search_parallel(query, search_paths, exclude, count)
+            return
+        
         for path in search_paths:
             if not os.path.exists(path):
                 continue
@@ -49,6 +94,10 @@ class SimpleSearchEngine(SearchEngine):
                 for root, dirs, files in os.walk(path):
                     # Prune excluded directories in-place
                     dirs[:] = [d for d in dirs if d not in exclude]
+                    
+                    # Early date-based directory pruning
+                    if self._date_range:
+                        dirs[:] = self._filter_dirs_by_date(root, dirs, self._date_range)
 
                     # Check depth if max_depth is specified
                     abs_root = os.path.abspath(root)
@@ -74,6 +123,156 @@ class SimpleSearchEngine(SearchEngine):
                             if count >= query.max_results:
                                 return
     
+    def _search_parallel(
+        self, 
+        query: SearchQuery, 
+        search_paths: List[str], 
+        exclude: set,
+        initial_count: int
+    ) -> Generator[SearchResult, None, None]:
+        """Parallel directory search with date-based filtering."""
+        count = initial_count
+        
+        # First, collect all directories to search
+        all_dirs: List[Tuple[str, int]] = []  # (directory_path, depth)
+        
+        for path in search_paths:
+            if not os.path.exists(path):
+                continue
+            
+            abs_search_path = os.path.abspath(path)
+            
+            if os.path.isfile(path):
+                result = self._process_file(path, query)
+                if result and self._matches_query(result, query):
+                    yield result
+                    count += 1
+                    if count >= query.max_results:
+                        return
+            else:
+                for root, dirs, files in os.walk(path):
+                    dirs[:] = [d for d in dirs if d not in exclude]
+                    
+                    # Early date-based directory pruning
+                    if self._date_range:
+                        dirs[:] = self._filter_dirs_by_date(root, dirs, self._date_range)
+                    
+                    abs_root = os.path.abspath(root)
+                    rel_root = os.path.relpath(abs_root, abs_search_path)
+                    
+                    if rel_root == '.':
+                        depth = 0
+                    else:
+                        depth = len([p for p in rel_root.split(os.sep) if p and p != '.'])
+                    
+                    if query.max_depth is not None and depth >= query.max_depth:
+                        dirs[:] = []
+                        if depth > query.max_depth:
+                            continue
+                    
+                    all_dirs.append((root, depth))
+        
+        # Process files in directories in parallel
+        with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+            futures = {}
+            for dir_path, depth in all_dirs:
+                if query.max_depth is not None and depth > query.max_depth:
+                    continue
+                try:
+                    files = os.listdir(dir_path)
+                except OSError:
+                    continue
+                future = executor.submit(self._process_directory, dir_path, files, query)
+                futures[future] = dir_path
+            
+            for future in as_completed(futures):
+                if count >= query.max_results:
+                    executor.shutdown(wait=False)
+                    break
+                try:
+                    results = future.result()
+                    for result in results:
+                        if self._matches_query(result, query):
+                            yield result
+                            count += 1
+                            if count >= query.max_results:
+                                break
+                except Exception:
+                    pass
+    
+    def _process_directory(
+        self, 
+        dir_path: str, 
+        files: List[str], 
+        query: SearchQuery
+    ) -> List[SearchResult]:
+        """Process all files in a directory (for parallel execution)."""
+        results = []
+        for file in files:
+            file_path = os.path.join(dir_path, file)
+            result = self._process_file(file_path, query)
+            if result:
+                results.append(result)
+        return results
+    
+    def _filter_dirs_by_date(
+        self, 
+        parent_dir: str, 
+        dirs: List[str],
+        date_range: Optional[Tuple[datetime, datetime]]
+    ) -> List[str]:
+        """Filter directories by date based on directory name (e.g., 2024-01-15)."""
+        if not date_range:
+            return dirs
+        
+        start_date, end_date = date_range
+        filtered = []
+        
+        for d in dirs:
+            dir_path = os.path.join(parent_dir, d)
+            # Try to parse directory name as date
+            parsed_date = self._parse_dir_date(d)
+            if parsed_date is not None:
+                # Directory has date in name - check if it's in range
+                if parsed_date < start_date or parsed_date > end_date:
+                    # Skip entire directory tree if date is outside range
+                    continue
+            filtered.append(d)
+        
+        return filtered
+    
+    def _parse_dir_date(self, dir_name: str) -> Optional[datetime]:
+        """Try to parse a directory name as a date."""
+        # Common date formats in directory names
+        date_formats = [
+            "%Y-%m-%d", "%Y%m%d", "%d-%m-%Y", "%m-%d-%Y",
+            "%Y_%m_%d", "%Y%m", "%Y", "%B_%Y", "%b_%Y",
+        ]
+        
+        # Try to extract date from directory name
+        # Remove common prefixes/suffixes
+        cleaned = dir_name.strip()
+        
+        for fmt in date_formats:
+            try:
+                return datetime.strptime(cleaned, fmt)
+            except ValueError:
+                continue
+        
+        # Try to find a date pattern in the name
+        date_pattern = re.compile(r'(\d{4})[-_]?(\d{2})?[-_]?(\d{2})?')
+        match = date_pattern.search(cleaned)
+        if match:
+            try:
+                year = int(match.group(1))
+                month = int(match.group(2)) if match.group(2) else 1
+                day = int(match.group(3)) if match.group(3) else 1
+                return datetime(year, month, day)
+            except ValueError:
+                pass
+        
+        return None
+    
     def _process_file(
         self, 
         file_path: str, 
@@ -81,7 +280,15 @@ class SimpleSearchEngine(SearchEngine):
     ) -> Optional[SearchResult]:
         """Process a single file and return a SearchResult if it matches the query."""
         try:
-            stat = os.stat(file_path)
+            # Use cached stat if enabled
+            if self.use_cache:
+                stat = _cached_stat(file_path)
+            else:
+                stat = os.stat(file_path)
+            
+            if stat is None:
+                return None
+                
             file_type = Path(file_path).suffix.lower()
             
             # Get MIME type (fallback when python-magic is unavailable)
@@ -119,10 +326,7 @@ class SimpleSearchEngine(SearchEngine):
             query_lower = query.query_text.lower()
 
             if query.use_regex:
-                try:
-                    rx = re.compile(query.query_text, re.IGNORECASE)
-                except re.error:
-                    rx = re.compile(re.escape(query.query_text), re.IGNORECASE)
+                rx = _get_cached_regex(query.query_text, re.IGNORECASE)
                 filename_match = bool(rx.search(result.file_path))
             elif " or " in query_lower:
                 terms = [t.strip() for t in query_lower.split(" or ") if t.strip()]
@@ -166,8 +370,8 @@ class SimpleSearchEngine(SearchEngine):
     @staticmethod
     def _regex_search_file(file_path: str, pattern: str) -> bool:
         """Search file content with a regex pattern."""
+        rx = _get_cached_regex(pattern, re.IGNORECASE)
         try:
-            rx = re.compile(pattern, re.IGNORECASE)
             with open(file_path, 'r', errors='ignore') as f:
                 for line in f:
                     if rx.search(line):
@@ -181,10 +385,7 @@ class SimpleSearchEngine(SearchEngine):
         """Return first matching line with context for content search preview."""
         try:
             if use_regex:
-                try:
-                    rx = re.compile(query_text, re.IGNORECASE)
-                except re.error:
-                    rx = re.compile(re.escape(query_text), re.IGNORECASE)
+                rx = _get_cached_regex(query_text, re.IGNORECASE)
             else:
                 rx = None
             q_lower = query_text.lower()

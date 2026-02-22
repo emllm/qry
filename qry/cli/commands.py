@@ -146,10 +146,41 @@ class CLICommands:
         Returns:
             SearchQuery: Configured search query
         """
+        # Handle date range - multiple options can be combined
         date_range = None
-        if args.last_days:
+        end_date = None
+        start_date = None
+        
+        # --last-days takes precedence
+        if getattr(args, 'last_days', None):
             end_date = datetime.now()
             start_date = end_date - timedelta(days=args.last_days)
+        else:
+            # Check for --after-date and --before-date
+            after_date_str = getattr(args, 'after_date', None)
+            before_date_str = getattr(args, 'before_date', None)
+            
+            if after_date_str:
+                try:
+                    start_date = datetime.strptime(after_date_str, "%Y-%m-%d")
+                except ValueError:
+                    pass
+            
+            if before_date_str:
+                try:
+                    end_date = datetime.strptime(before_date_str, "%Y-%m-%d")
+                    # Set to end of day
+                    end_date = end_date.replace(hour=23, minute=59, second=59)
+                except ValueError:
+                    pass
+        
+        if start_date or end_date:
+            # Default to now if only start date is specified
+            if end_date is None:
+                end_date = datetime.now()
+            # Default to epoch if only end date is specified  
+            if start_date is None:
+                start_date = datetime(1970, 1, 1)
             date_range = (start_date, end_date)
         
         file_types = args.type.split(',') if args.type else []
@@ -283,6 +314,21 @@ def create_parser() -> argparse.ArgumentParser:
         "--last-days",
         type=int,
         help="Filter by last N days",
+    )
+    search_parser.add_argument(
+        "--after-date",
+        help="Filter by files modified after date (YYYY-MM-DD)",
+    )
+    search_parser.add_argument(
+        "--before-date",
+        help="Filter by files modified before date (YYYY-MM-DD)",
+    )
+    search_parser.add_argument(
+        "--workers",
+        "-w",
+        type=int,
+        default=4,
+        help="Number of worker threads for parallel search (default: 4)",
     )
     search_parser.add_argument(
         "--filename",

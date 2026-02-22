@@ -8,7 +8,8 @@ POETRY := poetry
 
 # Python paths
 PYTHON := $(shell $(POETRY) env info --path)/bin/python
-PYTHON_SRC := src/$(PROJECT_NAME)
+# Package lives at repo root under qry/
+PYTHON_SRC := qry
 
 .PHONY: install test lint clean build publish docs start-server test-message test-api test-cli
 
