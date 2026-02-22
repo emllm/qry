@@ -118,6 +118,8 @@ class CLICommands:
         Returns:
             int: Exit code (0 for success)
         """
+        import time
+        
         query = self._build_search_query(args)
         search_paths = [args.scope]
         base_path = os.path.abspath(search_paths[0])
@@ -129,6 +131,13 @@ class CLICommands:
         collected_results = []
         interrupted = False
         show_preview = getattr(args, 'preview', False) and query.search_mode in ('content', 'both')
+        
+        # Progress tracking for large searches
+        start_time = time.time()
+        last_progress_time = start_time
+        progress_interval = 2.0  # Show progress every 2 seconds
+        files_scanned = 0
+        
         try:
             iterator = (
                 self.engine.search_iter(query, search_paths)
@@ -139,6 +148,19 @@ class CLICommands:
                 collected.append(result.file_path)
                 if show_preview or query.sort_by:
                     collected_results.append(result)
+                files_scanned += 1
+                
+                # Show incremental progress for long searches
+                current_time = time.time()
+                if current_time - last_progress_time > progress_interval:
+                    elapsed = current_time - start_time
+                    print(f"# Scanning... {files_scanned} matches, {elapsed:.1f}s elapsed", file=sys.stderr)
+                    # Show first few results early for user feedback
+                    if len(collected) <= 10:
+                        for p in collected[-3:]:
+                            print(f"  -> {p}", file=sys.stderr)
+                    last_progress_time = current_time
+                    
         except KeyboardInterrupt:
             interrupted = True
 

@@ -1,7 +1,7 @@
 """Qry - Ultra-fast file search and processing tool."""
 from typing import Generator, List, Optional
 
-__version__ = "0.2.11"
+__version__ = "0.2.12"
 
 # This will be set by __main__.py when the package is run as a script
 main = None

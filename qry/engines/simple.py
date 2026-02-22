@@ -753,14 +753,32 @@ class SimpleSearchEngine(SearchEngine):
             return None
     
     def _matches_query(self, result: SearchResult, query: SearchQuery) -> bool:
-        """Check if a result matches the query."""
-        # Size filtering
+        """Check if a result matches the query.
+        
+        Order of checks is optimized for performance:
+        1. File type (dict lookup - fastest)
+        2. Size filtering (stat cache - O(1))
+        3. Date range (stat cache - O(1))
+        4. Filename match (string compare - fast)
+        5. Content search (I/O bound - SLOWEST, check LAST)
+        """
+        # 1. File type filtering (FASTEST - dict lookup)
+        if query.file_types and result.file_type.lstrip('.') not in query.file_types:
+            return False
+        
+        # 2. Size filtering (stat cache - O(1))
         if query.min_size is not None and result.size < query.min_size:
             return False
         if query.max_size is not None and result.size > query.max_size:
             return False
+            
+        # 3. Date range filtering (stat cache - O(1))
+        if query.date_range:
+            start_date, end_date = query.date_range
+            if result.timestamp < start_date or result.timestamp > end_date:
+                return False
 
-        # Text / regex matching
+        # 4. Filename/text matching (string compare - fast)
         if query.query_text:
             query_lower = query.query_text.lower()
 
@@ -774,24 +792,18 @@ class SimpleSearchEngine(SearchEngine):
                 filename_match = query_lower in result.file_path.lower()
             
             mode = getattr(query, 'search_mode', 'filename')
+            
+            # 5. Content search (SLOWEST - I/O bound, check LAST)
             if mode == "content":
+                # For content-only mode, skip filename check
                 match = self._search_in_content(result.file_path, query, query_lower)
             elif mode == "both":
+                # Check filename first, only do content search if filename doesn't match
                 match = filename_match or self._search_in_content(result.file_path, query, query_lower)
             else:  # filename (default)
                 match = filename_match
 
             if not match:
-                return False
-            
-        # File type filtering
-        if query.file_types and result.file_type.lstrip('.') not in query.file_types:
-            return False
-            
-        # Date range filtering
-        if query.date_range:
-            start_date, end_date = query.date_range
-            if result.timestamp < start_date or result.timestamp > end_date:
                 return False
                 
         return True

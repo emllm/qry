@@ -1,3 +1,15 @@
+## [0.2.12] - 2026-02-22
+
+### Summary
+
+feat(goal): deep code analysis engine
+
+### Other
+
+- update qry/cli/commands.py
+- update qry/engines/simple.py
+
+
 ## [0.2.11] - 2026-02-22
 
 ### Summary
