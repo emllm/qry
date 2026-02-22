@@ -18,6 +18,34 @@ from qry.cli.batch import run_batch
 
 _SIZE_UNITS = {'b': 1, 'k': 1024, 'kb': 1024, 'm': 1024**2, 'mb': 1024**2, 'g': 1024**3, 'gb': 1024**3}
 
+# Human-readable date ranges
+_DATE_RANGE_ALIASES = {
+    'today': 0,
+    'yesterday': 1,
+    'lastday': 1,
+    'last day': 1,
+    '2days': 2,
+    '3days': 3,
+    '5days': 5,
+    'week': 7,
+    'lastweek': 7,
+    'last week': 7,
+    '2weeks': 14,
+    '2 weeks': 14,
+    'month': 30,
+    'lastmonth': 30,
+    'last month': 30,
+    '2months': 60,
+    '2 months': 60,
+    '3months': 90,
+    '3 months': 90,
+    'quarter': 90,
+    'year': 365,
+    'lastyear': 365,
+    'last year': 365,
+    '2years': 730,
+}
+
 
 def _parse_size(value: str) -> int:
     """Parse human-readable size string like '10MB', '500k', '1G' to bytes."""
@@ -26,6 +54,47 @@ def _parse_size(value: str) -> int:
         if value.endswith(suffix):
             return int(float(value[:-len(suffix)]) * mult)
     return int(value)
+
+
+def _parse_date_range(value: str) -> Optional[int]:
+    """Parse human-readable date range like 'last week', 'month', 'yesterday'.
+    
+    Returns:
+        Number of days as integer, or None if not recognized
+    """
+    value = value.strip().lower().replace('_', ' ')
+    
+    # Check direct aliases
+    if value in _DATE_RANGE_ALIASES:
+        return _DATE_RANGE_ALIASES[value]
+    
+    # Try parsing "last N days/weeks/months"
+    import re
+    patterns = [
+        r'last\s+(\d+)\s+days?',
+        r'last\s+(\d+)\s+weeks?',
+        r'last\s+(\d+)\s+months?',
+        r'last\s+(\d+)\s+years?',
+        r'(\d+)\s+days?',
+        r'(\d+)\s+weeks?',
+        r'(\d+)\s+months?',
+        r'(\d+)\s+years?',
+    ]
+    
+    for pattern in patterns:
+        match = re.match(pattern, value)
+        if match:
+            num = int(match.group(1))
+            if 'week' in pattern:
+                return num * 7
+            elif 'month' in pattern:
+                return num * 30
+            elif 'year' in pattern:
+                return num * 365
+            else:
+                return num
+    
+    return None
 
 
 class CLICommands:
@@ -155,6 +224,12 @@ class CLICommands:
         if getattr(args, 'last_days', None):
             end_date = datetime.now()
             start_date = end_date - timedelta(days=args.last_days)
+        elif getattr(args, 'last', None):
+            # Parse human-readable date range like "week", "month", "yesterday"
+            days = _parse_date_range(args.last)
+            if days is not None:
+                end_date = datetime.now()
+                start_date = end_date - timedelta(days=days)
         else:
             # Check for --after-date and --before-date
             after_date_str = getattr(args, 'after_date', None)
@@ -313,7 +388,11 @@ def create_parser() -> argparse.ArgumentParser:
     search_parser.add_argument(
         "--last-days",
         type=int,
-        help="Filter by last N days",
+        help="Filter by last N days (or use --last for human-readable: today, yesterday, week, month, year)",
+    )
+    search_parser.add_argument(
+        "--last",
+        help="Human-readable date range: 'today', 'yesterday', 'week', 'month', 'year', '2weeks', '3months', etc.",
     )
     search_parser.add_argument(
         "--after-date",

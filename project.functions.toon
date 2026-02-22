@@ -1,22 +1,22 @@
 project: qry
-generated: "2026-02-21T18:35:48.484421"
+generated: "2026-02-22T09:46:58.931036"
 modules[23]{path,lang,items}:
   qry.py,python,0
   engines/__init__.py,python,3
-  tests/test_qry.py,python,2
+  tests/test_qry.py,python,23
   api/routes.py,python,4
   api/app.py,python,1
-  qry/__init__.py,python,0
+  qry/__init__.py,python,2
   qry/__main__.py,python,0
   qry/engines/base.py,python,3
   qry/engines/__init__.py,python,3
   qry/engines/fast_search.py,python,14
-  qry/engines/simple.py,python,7
+  qry/engines/simple.py,python,20
   qry/core/__init__.py,python,0
   qry/core/models.py,python,4
   qry/web/__init__.py,python,0
   qry/web/renderer.py,python,6
-  qry/cli/commands.py,python,8
+  qry/cli/commands.py,python,9
   qry/cli/interactive.py,python,17
   qry/cli/__init__.py,python,0
   qry/cli/batch.py,python,7
@@ -32,9 +32,30 @@ function_details:
       get_engine,function,"(name:str) -> Optional[SearchEngine]",23-37,false,15,2,Get a search engine by name.
       get_default_engine,function,() -> SearchEngine,40-49,false,10,2,Get the default search engine.
   tests/test_qry.py:
-    functions[2]{name,kind,sig,loc,async,lines,cc,does}:
-      test_placeholder,function,(),4-6,false,3,1,Placeholder test to verify the test setup works.
-      test_import,function,(),9-11,false,3,1,Verify the main package can be imported.
+    functions[23]{name,kind,sig,loc,async,lines,cc,does}:
+      test_import,function,(),9-14,false,6,1,Verify the main package can be imported.
+      sample_tree,function,(tmp_path),22-37,false,16,1,Create a small file tree for testing.
+      TestSearch.test_filename_search,method,(sample_tree),45-48,false,4,2,checks filename search
+      TestSearch.test_content_search,method,(sample_tree),50-54,false,5,3,checks content search
+      TestSearch.test_depth_limit,method,(sample_tree),56-62,false,7,2,checks depth limit
+      TestSearch.test_file_types,method,(sample_tree),64-68,false,5,2,checks file types
+      TestSearch.test_exclude_dirs,method,(sample_tree),70-75,false,6,1,checks exclude dirs
+      TestSearch.test_no_exclude,method,(sample_tree),77-81,false,5,2,checks no exclude
+      TestSearch.test_min_size,method,(sample_tree),83-87,false,5,3,checks min size
+      TestSearch.test_max_size,method,(sample_tree),89-92,false,4,2,checks max size
+      TestSearch.test_regex_filename,method,(sample_tree),94-97,false,4,2,checks regex filename
+      TestSearch.test_regex_content,method,(sample_tree),99-102,false,4,2,checks regex content
+      TestSearch.test_sort_by_name,method,(sample_tree),104-107,false,4,1,checks sort by name
+      TestSearch.test_sort_by_size,method,(sample_tree),109-113,false,5,2,checks sort by size
+      TestSearch.test_search_iter,method,(sample_tree),115-119,false,5,1,checks search iter
+      TestSearch.test_or_query,method,(sample_tree),121-126,false,6,2,checks or query
+      TestSimpleEngine.test_content_snippet,method,(sample_tree),134-140,false,7,1,checks content snippet
+      TestSimpleEngine.test_content_snippet_regex,method,(sample_tree),142-148,false,7,1,checks content snippet regex
+      TestSimpleEngine.test_content_snippet_not_found,method,(sample_tree),150-155,false,6,1,checks content snippet not found
+      TestParseSize.test_bytes,method,(),163-166,false,4,1,checks bytes
+      TestParseSize.test_kilobytes,method,(),168-171,false,4,1,checks kilobytes
+      TestParseSize.test_megabytes,method,(),173-176,false,4,1,checks megabytes
+      TestParseSize.test_gigabytes,method,(),178-181,false,4,1,checks gigabytes
   api/routes.py:
     functions[4]{name,kind,sig,loc,async,lines,cc,does}:
       search,function,"(q:str=Query(..., description='Search query'), types:Optional[str]=Query(None, description='Comma-separated list of file types to filter by'), limit:int=Query(100, description='Maximum number of results to return'), last_days:Optional[int]=Query(None, description='Filter by last N days'), engine:str=Query('default', description='Search engine to use')) -> List[dict]",14-49,true,36,7,Search for files.
@@ -44,6 +65,10 @@ function_details:
   api/app.py:
     functions[1]{name,kind,sig,loc,async,lines,cc,does}:
       create_app,function,() -> FastAPI,17-61,false,45,1,Create and configure the FastAPI application.
+  qry/__init__.py:
+    functions[2]{name,kind,sig,loc,async,lines,cc,does}:
+      search,function,"(query_text:str, scope:str='.') -> List[str]",10-55,false,46,1,Search for files and return a list of matching file paths.
+      search_iter,function,"(query_text:str, scope:str='.') -> Generator[str, None, None]",58-120,false,63,8,"Like :func:`search` but yields file paths one at a time (memory-efficient)."
   qry/engines/base.py:
     functions[3]{name,kind,sig,loc,async,lines,cc,does}:
       SearchEngine.search,method,"(query:SearchQuery, search_paths:List[str]) -> List[SearchResult]",13-23,false,11,1,Search for files matching the query.
@@ -71,14 +96,27 @@ function_details:
       FastContentSearcher._str_find_file,method,"(file_path:str, pattern:str, case_sensitive:bool) -> bool",190-199,false,10,3,str find file
       FastContentSearcher._aho_corasick_file,method,"(file_path:str, patterns:List[str], case_sensitive:bool) -> bool",201-211,false,11,5,aho corasick file
   qry/engines/simple.py:
-    functions[7]{name,kind,sig,loc,async,lines,cc,does}:
-      SimpleSearchEngine.__init__,method,"(max_workers:int=None)",20-24,false,5,3,Initialize the simple search engine.
-      SimpleSearchEngine.search,method,"(query:SearchQuery, search_paths:List[str]) -> List[SearchResult]",26-65,false,40,18,Search for files matching the query.
-      SimpleSearchEngine._process_file,method,"(file_path:str, query:SearchQuery) -> Optional[SearchResult]",67-97,false,31,3,Process a single file and return a SearchResult if it matches the query.
-      SimpleSearchEngine._matches_query,method,"(result:SearchResult, query:SearchQuery) -> bool",99-133,false,35,15,Check if a result matches the query.
-      SimpleSearchEngine._search_in_content,method,"(file_path:str, query_lower:str) -> bool",135-141,false,7,4,Search for query text in file content using FastContentSearcher.
-      SimpleSearchEngine.get_name,method,() -> str,143-145,false,3,1,Get the name of the search engine.
-      SimpleSearchEngine.is_available,method,() -> bool,147-149,false,3,1,Check if the search engine is available.
+    functions[20]{name,kind,sig,loc,async,lines,cc,does}:
+      _get_directory_priority,function,"(dir_path:str) -> Priority",130-142,false,13,3,Get priority for a directory based on its path.
+      _cached_stat,function,"(file_path:str) -> Optional[os.stat_result]",151-156,false,6,2,Cached version of os.stat to avoid repeated filesystem calls.
+      _get_cached_regex,function,"(pattern:str, flags:int=re.IGNORECASE) -> re.Pattern",163-171,false,9,3,Get or create a cached compiled regex pattern.
+      SimpleSearchEngine.__init__,method,"(max_workers:int=None, use_cache:bool=True, priority_mode:bool=False, priority_callback:PriorityCallback=None, incremental_timeout:float=1.0)",177-203,false,27,4,Initialize the simple search engine.
+      SimpleSearchEngine.search,method,"(query:SearchQuery, search_paths:List[str]) -> List[SearchResult]",205-207,false,3,1,Search for files matching the query.
+      SimpleSearchEngine.search_iter,method,"(query:SearchQuery, search_paths:List[str]) -> Generator[SearchResult, None, None]",209-272,false,64,25,Yield matching SearchResult objects one at a time (supports Ctrl+C).
+      SimpleSearchEngine._search_incremental,method,"(query:SearchQuery, search_paths:List[str]) -> Generator[SearchResult, None, None]",274-418,false,145,14,Incremental search with timeout-based fallback.
+      SimpleSearchEngine._collect_dirs_for_priority,method,"(search_paths:List[str], exclude:set, target_priority:Priority) -> List[Tuple[str, int]]",420-458,false,39,14,Collect all directories matching a specific priority.
+      SimpleSearchEngine._search_by_priority,method,"(query:SearchQuery, search_paths:List[str]) -> Generator[SearchResult, None, None]",460-563,false,104,29,Search directories by priority - high priority first.
+      SimpleSearchEngine._search_parallel,method,"(query:SearchQuery, search_paths:List[str], exclude:set, initial_count:int) -> Generator[SearchResult, None, None]",565-640,false,76,28,Parallel directory search with date-based filtering.
+      SimpleSearchEngine._process_directory,method,"(dir_path:str, files:List[str], query:SearchQuery) -> List[SearchResult]",642-655,false,14,3,Process all files in a directory (for parallel execution).
+      SimpleSearchEngine._filter_dirs_by_date,method,"(parent_dir:str, dirs:List[str], date_range:Optional[Tuple[datetime,datetime]]) -> List[str]",657-681,false,25,6,"Filter directories by date based on directory name (e.g., 2024-01-15)."
+      SimpleSearchEngine._parse_dir_date,method,"(dir_name:str) -> Optional[datetime]",683-713,false,31,7,Try to parse a directory name as a date.
+      SimpleSearchEngine._process_file,method,"(file_path:str, query:SearchQuery) -> Optional[SearchResult]",715-753,false,39,5,Process a single file and return a SearchResult if it matches the query.
+      SimpleSearchEngine._matches_query,method,"(result:SearchResult, query:SearchQuery) -> bool",755-797,false,43,20,Check if a result matches the query.
+      SimpleSearchEngine._search_in_content,method,"(file_path:str, query:SearchQuery, query_lower:str) -> bool",799-807,false,9,5,Search for query text in file content.
+      SimpleSearchEngine._regex_search_file,method,"(file_path:str, pattern:str) -> bool",810-820,false,11,4,Search file content with a regex pattern.
+      SimpleSearchEngine.get_content_snippet,method,"(file_path:str, query_text:str, context_lines:int=1, use_regex:bool=False) -> Optional[str]",823-847,false,25,12,Return first matching line with context for content search preview.
+      SimpleSearchEngine.get_name,method,() -> str,849-851,false,3,1,Get the name of the search engine.
+      SimpleSearchEngine.is_available,method,() -> bool,853-855,false,3,1,Check if the search engine is available.
   qry/core/models.py:
     functions[4]{name,kind,sig,loc,async,lines,cc,does}:
       SearchResult.modified,method,() -> datetime,21-23,false,3,1,Return modification timestamp (compatibility helper).
@@ -94,15 +132,16 @@ function_details:
       HTMLRenderer._load_template,method,"(template_name:str) -> str",109-143,false,35,3,Load an HTML template.
       HTMLRenderer._format_file_size,method,"(size_bytes:int) -> str",146-152,false,7,3,Format file size in a human-readable format.
   qry/cli/commands.py:
-    functions[8]{name,kind,sig,loc,async,lines,cc,does}:
-      create_parser,function,() -> argparse.ArgumentParser,141-262,false,122,1,Create the argument parser for the CLI.
-      main,function,"(args:Optional[List[str]]=None) -> int",265-317,false,53,17,Main entry point for the CLI.
-      CLICommands.__init__,method,(engine=None) -> None,20-27,false,8,2,Initialize the CLI commands handler.
-      CLICommands.search_command,method,"(args:Any) -> int",29-58,false,30,5,Handle the search command.
-      CLICommands._build_search_query,method,"(args:Any) -> SearchQuery",60-92,false,33,7,Build a SearchQuery from command-line arguments.
-      CLICommands.version_command,method,"(args:Any) -> int",94-105,false,12,1,Handle the version command.
-      CLICommands.interactive_command,method,"(args:Any) -> int",107-116,false,10,1,Start interactive mode.
-      CLICommands.batch_command,method,"(args:Any) -> int",118-138,false,21,2,Process search queries in batch mode.
+    functions[9]{name,kind,sig,loc,async,lines,cc,does}:
+      _parse_size,function,"(value:str) -> int",22-28,false,7,3,"Parse human-readable size string like '10MB', '500k', '1G' to bytes."
+      create_parser,function,() -> argparse.ArgumentParser,272-449,false,178,1,Create the argument parser for the CLI.
+      main,function,"(args:Optional[List[str]]=None) -> int",452-504,false,53,17,Main entry point for the CLI.
+      CLICommands.__init__,method,(engine=None) -> None,34-41,false,8,2,Initialize the CLI commands handler.
+      CLICommands.search_command,method,"(args:Any) -> int",43-138,false,96,31,Handle the search command.
+      CLICommands._build_search_query,method,"(args:Any) -> SearchQuery",140-223,false,84,23,Build a SearchQuery from command-line arguments.
+      CLICommands.version_command,method,"(args:Any) -> int",225-236,false,12,1,Handle the version command.
+      CLICommands.interactive_command,method,"(args:Any) -> int",238-247,false,10,1,Start interactive mode.
+      CLICommands.batch_command,method,"(args:Any) -> int",249-269,false,21,2,Process search queries in batch mode.
   qry/cli/interactive.py:
     functions[17]{name,kind,sig,loc,async,lines,cc,does}:
       run_interactive,function,(engine=None),360-370,false,11,3,Run the interactive command-line interface.
