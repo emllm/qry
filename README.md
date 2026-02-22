@@ -9,6 +9,7 @@ Ultra-fast file search and metadata extraction tool.
 ## Features
 
 - Fast filesystem search with optional depth, date, and size filters
+- **Optimized performance** — caching, parallel processing, date-based directory pruning
 - CLI modes: `search`, `interactive`, `batch`, `version`
 - HTTP API (FastAPI) for JSON and HTML search responses
 - Metadata extraction for matched files (size, timestamps, content type)
@@ -20,6 +21,8 @@ Ultra-fast file search and metadata extraction tool.
 - **Size filtering** — `--min-size` / `--max-size` with human-readable units (1k, 10MB, 1G)
 - **Sort results** — `--sort name|size|date`
 - **Content preview** — `--preview` shows matching line with context for content search
+- **Date filtering** — `--last-days`, `--after-date`, `--before-date` for time-based searches
+- **Parallel search** — `-w/--workers` for multi-threaded directory processing
 
 ## Installation
 
@@ -84,6 +87,9 @@ qry version
 | `-d N` | Max directory depth |
 | `-l N` | Limit results (0 = unlimited, default) |
 | `--last-days N` | Files modified in last N days |
+| `--after-date YYYY-MM-DD` | Files modified after date |
+| `--before-date YYYY-MM-DD` | Files modified before date |
+| `-w N` | Workers for parallel search (default: 4) |
 | `--min-size SIZE` | Minimum file size (e.g. `1k`, `10MB`, `1G`) |
 | `--max-size SIZE` | Maximum file size (e.g. `100k`, `5MB`) |
 | `-e DIR` | Exclude extra directory (repeatable, comma-separated) |
@@ -137,6 +143,12 @@ poetry run qry "config" --no-exclude
 poetry run qry "invoice OR faktura" --scope /data/docs --depth 3
 poetry run qry search "report" --type pdf,docx --last-days 7
 poetry run qry batch queries.txt --format json --output-file results.json
+
+# date filtering examples
+poetry run qry "report" --last-days 30          # files modified in last 30 days
+poetry run qry "invoice" --after-date 2026-01-01    # files after Jan 1, 2026
+poetry run qry "invoice" --before-date 2025-12-31  # files before Dec 31, 2025
+poetry run qry "report" --after-date 2026-01-01 --before-date 2026-02-01  # date range
 ```
 
 ## Python API
@@ -178,6 +190,22 @@ Parameters for both `qry.search()` and `qry.search_iter()`:
 | `max_size` | int\|None | `None` | Maximum file size in bytes |
 | `regex` | bool | `False` | Treat query as regular expression |
 | `sort_by` | str\|None | `None` | Sort by `"name"`, `"size"`, or `"date"` |
+| `date_range` | tuple\|None | `None` | Date range as `(start_date, end_date)` datetime tuples |
+
+Example with date filtering:
+
+```python
+from datetime import datetime, timedelta
+import qry
+
+# Files modified in last 30 days
+end_date = datetime.now()
+start_date = end_date - timedelta(days=30)
+files = qry.search("invoice", date_range=(start_date, end_date))
+
+# Files modified in 2026
+files = qry.search("report", date_range=(datetime(2026, 1, 1), datetime(2026, 12, 31)))
+```
 
 ## HTTP API usage
 

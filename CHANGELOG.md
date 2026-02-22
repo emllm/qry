@@ -2,7 +2,18 @@
 
 ### Summary
 
-feat(build): deep code analysis engine with 5 supporting modules
+perf(search): Major performance optimizations - caching, parallel processing, date-based directory pruning
+
+### Performance Improvements
+- **File stat caching** - Added `@lru_cache` for `os.stat()` calls to avoid repeated filesystem operations
+- **Regex pattern caching** - Compiled regex patterns are cached to avoid recompilation
+- **Parallel directory processing** - Added `ThreadPoolExecutor` for concurrent file processing in multiple directories
+- **Date-based directory pruning** - Directories with date patterns in names (e.g., `2024-01-15`) are skipped early if outside the date range
+
+### New CLI Options
+- `--after-date YYYY-MM-DD` - Filter files modified after a specific date
+- `--before-date YYYY-MM-DD` - Filter files modified before a specific date
+- `-w N` / `--workers N` - Number of worker threads for parallel search (default: 4)
 
 ### Other
 
